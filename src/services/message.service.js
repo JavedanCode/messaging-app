@@ -63,12 +63,6 @@ export async function createMessage(conversationId, senderId, data) {
 }
 
 export async function getConversationMessages(conversationId, userId, limit = 50) {
-  const parsedLimit = Number(limit);
-
-  if (!Number.isInteger(parsedLimit) || parsedLimit < 1 || parsedLimit > 100) {
-    throw new AppError('Limit must be an integer between 1 and 100.', 400);
-  }
-
   const conversation = await prisma.conversation.findUnique({
     where: {
       id: conversationId,
@@ -102,7 +96,7 @@ export async function getConversationMessages(conversationId, userId, limit = 50
     orderBy: {
       createdAt: 'desc',
     },
-    take: parsedLimit,
+    take: limit,
     include: messageInclude,
   });
 }
