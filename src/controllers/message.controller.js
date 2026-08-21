@@ -1,6 +1,7 @@
 import {
   createAttachmentMessage,
   createMessage,
+  deleteMessage,
   getConversationMessages,
 } from '../services/message.service.js';
 
@@ -33,4 +34,10 @@ export async function getConversationMessagesController(req, res) {
     success: true,
     messages,
   });
+}
+
+export async function deleteMessageController(req, res) {
+  await deleteMessage(req.params.conversationId, req.params.messageId, req.user.id);
+
+  res.status(204).send();
 }
