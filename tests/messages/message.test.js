@@ -622,4 +622,315 @@ describe('Message API', () => {
       expect(response.body.success).toBe(false);
     });
   });
+
+  describe('POST /conversations/:conversationId/messages/attachment', () => {
+    it('uploads an image attachment', async () => {
+      const user = await createTestUser({
+        username: 'alice',
+        email: 'alice@example.com',
+      });
+
+      const otherUser = await createTestUser({
+        username: 'bob',
+        email: 'bob@example.com',
+      });
+
+      const agent = await loginUser(user.email);
+
+      const conversation = await createDirectConversation(user.id, otherUser.id);
+
+      const response = await agent
+        .post(`/conversations/${conversation.id}/messages/attachment`)
+        .attach('file', Buffer.from('fake png content'), {
+          filename: 'photo.png',
+          contentType: 'image/png',
+        });
+
+      expect(response.status).toBe(201);
+
+      expect(response.body).toMatchObject({
+        success: true,
+        message: {
+          conversationId: conversation.id,
+          senderId: user.id,
+          type: 'IMAGE',
+          attachmentName: 'photo.png',
+          attachmentMimeType: 'image/png',
+        },
+      });
+
+      expect(response.body.message.attachmentSize).toBeGreaterThan(0);
+      expect(response.body.message.content).toBeNull();
+      expect(response.body.message.attachmentUrl).toBeNull();
+    });
+
+    it('uploads a file attachment', async () => {
+      const user = await createTestUser({
+        username: 'alice',
+        email: 'alice@example.com',
+      });
+
+      const otherUser = await createTestUser({
+        username: 'bob',
+        email: 'bob@example.com',
+      });
+
+      const agent = await loginUser(user.email);
+
+      const conversation = await createDirectConversation(user.id, otherUser.id);
+
+      const response = await agent
+        .post(`/conversations/${conversation.id}/messages/attachment`)
+        .attach('file', Buffer.from('hello world'), {
+          filename: 'document.txt',
+          contentType: 'text/plain',
+        });
+
+      expect(response.status).toBe(201);
+
+      expect(response.body).toMatchObject({
+        success: true,
+        message: {
+          conversationId: conversation.id,
+          senderId: user.id,
+          type: 'FILE',
+          attachmentName: 'document.txt',
+          attachmentMimeType: 'text/plain',
+        },
+      });
+
+      expect(response.body.message.attachmentSize).toBeGreaterThan(0);
+      expect(response.body.message.content).toBeNull();
+      expect(response.body.message.attachmentUrl).toBeNull();
+    });
+
+    it('creates the attachment message with the authenticated user as the sender', async () => {
+      const user = await createTestUser({
+        username: 'alice',
+        email: 'alice@example.com',
+      });
+
+      const otherUser = await createTestUser({
+        username: 'bob',
+        email: 'bob@example.com',
+      });
+
+      const agent = await loginUser(user.email);
+
+      const conversation = await createDirectConversation(user.id, otherUser.id);
+
+      const response = await agent
+        .post(`/conversations/${conversation.id}/messages/attachment`)
+        .attach('file', Buffer.from('hello'), {
+          filename: 'document.txt',
+          contentType: 'text/plain',
+        });
+
+      expect(response.status).toBe(201);
+
+      const message = await prisma.message.findUnique({
+        where: {
+          id: response.body.message.id,
+        },
+      });
+
+      expect(message.senderId).toBe(user.id);
+      expect(message.conversationId).toBe(conversation.id);
+    });
+
+    it('updates lastMessageAt when an attachment is uploaded', async () => {
+      const user = await createTestUser({
+        username: 'alice',
+        email: 'alice@example.com',
+      });
+
+      const otherUser = await createTestUser({
+        username: 'bob',
+        email: 'bob@example.com',
+      });
+
+      const agent = await loginUser(user.email);
+
+      const conversation = await createDirectConversation(user.id, otherUser.id);
+
+      const before = new Date();
+
+      const response = await agent
+        .post(`/conversations/${conversation.id}/messages/attachment`)
+        .attach('file', Buffer.from('hello'), {
+          filename: 'document.txt',
+          contentType: 'text/plain',
+        });
+
+      expect(response.status).toBe(201);
+
+      const updatedConversation = await prisma.conversation.findUnique({
+        where: {
+          id: conversation.id,
+        },
+      });
+
+      expect(updatedConversation.lastMessageAt).not.toBeNull();
+      expect(updatedConversation.lastMessageAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
+    });
+
+    it('rejects an attachment without a file', async () => {
+      const user = await createTestUser({
+        username: 'alice',
+        email: 'alice@example.com',
+      });
+
+      const otherUser = await createTestUser({
+        username: 'bob',
+        email: 'bob@example.com',
+      });
+
+      const agent = await loginUser(user.email);
+
+      const conversation = await createDirectConversation(user.id, otherUser.id);
+
+      const response = await agent.post(`/conversations/${conversation.id}/messages/attachment`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('rejects an unsupported file type', async () => {
+      const user = await createTestUser({
+        username: 'alice',
+        email: 'alice@example.com',
+      });
+
+      const otherUser = await createTestUser({
+        username: 'bob',
+        email: 'bob@example.com',
+      });
+
+      const agent = await loginUser(user.email);
+
+      const conversation = await createDirectConversation(user.id, otherUser.id);
+
+      const response = await agent
+        .post(`/conversations/${conversation.id}/messages/attachment`)
+        .attach('file', Buffer.from('malicious content'), {
+          filename: 'program.exe',
+          contentType: 'application/x-msdownload',
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('UNSUPPORTED_FILE_TYPE');
+    });
+
+    it('rejects an attachment larger than 4 MB', async () => {
+      const user = await createTestUser({
+        username: 'alice',
+        email: 'alice@example.com',
+      });
+
+      const otherUser = await createTestUser({
+        username: 'bob',
+        email: 'bob@example.com',
+      });
+
+      const agent = await loginUser(user.email);
+
+      const conversation = await createDirectConversation(user.id, otherUser.id);
+
+      const oversizedFile = Buffer.alloc(4 * 1024 * 1024 + 1);
+
+      const response = await agent
+        .post(`/conversations/${conversation.id}/messages/attachment`)
+        .attach('file', oversizedFile, {
+          filename: 'large.txt',
+          contentType: 'text/plain',
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('rejects a non-member from uploading an attachment', async () => {
+      const user = await createTestUser({
+        username: 'alice',
+        email: 'alice@example.com',
+      });
+
+      const otherUser = await createTestUser({
+        username: 'bob',
+        email: 'bob@example.com',
+      });
+
+      const outsider = await createTestUser({
+        username: 'charlie',
+        email: 'charlie@example.com',
+      });
+
+      const outsiderAgent = await loginUser(outsider.email);
+
+      const conversation = await createDirectConversation(user.id, otherUser.id);
+
+      const response = await outsiderAgent
+        .post(`/conversations/${conversation.id}/messages/attachment`)
+        .attach('file', Buffer.from('hello'), {
+          filename: 'document.txt',
+          contentType: 'text/plain',
+        });
+
+      expect(response.status).toBe(403);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('returns 404 for a nonexistent conversation', async () => {
+      const user = await createTestUser({
+        username: 'alice',
+        email: 'alice@example.com',
+      });
+
+      const agent = await loginUser(user.email);
+
+      const nonexistentConversationId = '00000000-0000-0000-0000-000000000000';
+
+      const response = await agent
+        .post(`/conversations/${nonexistentConversationId}/messages/attachment`)
+        .attach('file', Buffer.from('hello'), {
+          filename: 'document.txt',
+          contentType: 'text/plain',
+        });
+
+      expect(response.status).toBe(404);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('rejects an invalid conversation ID', async () => {
+      const user = await createTestUser({
+        username: 'alice',
+        email: 'alice@example.com',
+      });
+
+      const agent = await loginUser(user.email);
+
+      const response = await agent
+        .post('/conversations/not-a-uuid/messages/attachment')
+        .attach('file', Buffer.from('hello'), {
+          filename: 'document.txt',
+          contentType: 'text/plain',
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('rejects an unauthenticated request', async () => {
+      const response = await request(app)
+        .post('/conversations/00000000-0000-0000-0000-000000000000/messages/attachment')
+        .attach('file', Buffer.from('hello'), {
+          filename: 'document.txt',
+          contentType: 'text/plain',
+        });
+
+      expect(response.status).toBe(401);
+      expect(response.body.success).toBe(false);
+    });
+  });
 });
