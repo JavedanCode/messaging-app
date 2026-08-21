@@ -1,0 +1,13 @@
+node_modules/
+coverage/
+dist/
+build/
+uploads/
+storage/
+generated/
+prisma/migrations/
+.agents/
+.claude/
+.windsurf/
+.env
+.env.*
