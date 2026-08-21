@@ -121,21 +121,15 @@ model Conversation {
 
   type ConversationType
 
-  /*
-   * Only direct conversations use directKey.
-   *
-   * The application generates this value from the two user IDs
-   * in deterministic order:
-   *
-   * smallerUserId:largerUserId
-   *
-   * This prevents the same two users from accidentally having
-   * multiple direct conversations.
-   */
+  // Only used for DIRECT conversations.
+  // Generated from the two user IDs in deterministic order.
   directKey String? @unique
 
+  // Used for GROUP conversations.
   name String?
 
+  // User who created the conversation.
+  // Nullable because the user may be deleted later.
   createdById String?
 
   lastMessageAt DateTime?
@@ -143,17 +137,13 @@ model Conversation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  createdBy User? @relation(
-    "ConversationCreator",
-    fields: [createdById],
-    references: [id],
-    onDelete: SetNull
-  )
+  createdBy User? @relation("ConversationCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
   members ConversationMember[]
   messages Message[]
 
   @@index([type])
+  @@index([createdById])
   @@index([lastMessageAt])
   @@index([createdAt])
 }
@@ -168,17 +158,8 @@ model ConversationMember {
 
   joinedAt DateTime @default(now())
 
-  conversation Conversation @relation(
-    fields: [conversationId],
-    references: [id],
-    onDelete: Cascade
-  )
-
-  user User @relation(
-    fields: [userId],
-    references: [id],
-    onDelete: Cascade
-  )
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([conversationId, userId])
   @@index([userId])
@@ -195,35 +176,17 @@ model Message {
 
   content String?
 
-  /*
-   * Attachment fields are nullable because normal text messages
-   * do not need them.
-   *
-   * IMAGE and FILE messages can store:
-   * - the public/storage URL
-   * - original filename
-   * - MIME type
-   * - file size
-   */
-  attachmentUrl      String?
-  attachmentName    String?
+  // Used for IMAGE and FILE messages.
+  attachmentUrl       String?
+  attachmentName     String?
   attachmentMimeType String?
-  attachmentSize    Int?
+  attachmentSize     Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  conversation Conversation @relation(
-    fields: [conversationId],
-    references: [id],
-    onDelete: Cascade
-  )
-
-  sender User @relation(
-    fields: [senderId],
-    references: [id],
-    onDelete: Cascade
-  )
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, createdAt])
   @@index([senderId])
