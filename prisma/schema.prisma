@@ -19,6 +19,22 @@ enum VerificationTokenType {
   EMAIL_CHANGE
 }
 
+enum ConversationType {
+  DIRECT
+  GROUP
+}
+
+enum ConversationMemberRole {
+  MEMBER
+  ADMIN
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+}
+
 model User {
   id           String  @id @default(uuid())
   username     String  @unique
@@ -38,6 +54,11 @@ model User {
   sessions Session[]
 
   verificationTokens VerificationToken[]
+
+  conversationMemberships ConversationMember[]
+  sentMessages            Message[]
+
+  createdConversations Conversation[] @relation("ConversationCreator")
 
   @@index([createdAt])
 }
@@ -93,4 +114,118 @@ model VerificationToken {
 
   @@index([userId, type])
   @@index([expiresAt])
+}
+
+model Conversation {
+  id String @id @default(uuid())
+
+  type ConversationType
+
+  /*
+   * Only direct conversations use directKey.
+   *
+   * The application generates this value from the two user IDs
+   * in deterministic order:
+   *
+   * smallerUserId:largerUserId
+   *
+   * This prevents the same two users from accidentally having
+   * multiple direct conversations.
+   */
+  directKey String? @unique
+
+  name String?
+
+  createdById String?
+
+  lastMessageAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdBy User? @relation(
+    "ConversationCreator",
+    fields: [createdById],
+    references: [id],
+    onDelete: SetNull
+  )
+
+  members ConversationMember[]
+  messages Message[]
+
+  @@index([type])
+  @@index([lastMessageAt])
+  @@index([createdAt])
+}
+
+model ConversationMember {
+  id String @id @default(uuid())
+
+  conversationId String
+  userId         String
+
+  role ConversationMemberRole @default(MEMBER)
+
+  joinedAt DateTime @default(now())
+
+  conversation Conversation @relation(
+    fields: [conversationId],
+    references: [id],
+    onDelete: Cascade
+  )
+
+  user User @relation(
+    fields: [userId],
+    references: [id],
+    onDelete: Cascade
+  )
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@index([conversationId])
+}
+
+model Message {
+  id String @id @default(uuid())
+
+  conversationId String
+  senderId       String
+
+  type MessageType @default(TEXT)
+
+  content String?
+
+  /*
+   * Attachment fields are nullable because normal text messages
+   * do not need them.
+   *
+   * IMAGE and FILE messages can store:
+   * - the public/storage URL
+   * - original filename
+   * - MIME type
+   * - file size
+   */
+  attachmentUrl      String?
+  attachmentName    String?
+  attachmentMimeType String?
+  attachmentSize    Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  conversation Conversation @relation(
+    fields: [conversationId],
+    references: [id],
+    onDelete: Cascade
+  )
+
+  sender User @relation(
+    fields: [senderId],
+    references: [id],
+    onDelete: Cascade
+  )
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@index([createdAt])
 }
