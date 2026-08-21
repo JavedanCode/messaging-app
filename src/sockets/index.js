@@ -18,7 +18,7 @@ export function createSocketServer(server) {
   io.use(authenticateSocket);
 
   io.on('connection', (socket) => {
-    registerConversationSocket(io, socket);
+    registerConversationSocket(socket);
   });
 
   return io;
