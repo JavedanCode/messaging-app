@@ -40,4 +40,14 @@ router.get(
   getConversationMessagesController,
 );
 
+router.delete(
+  '/:conversationId/messages/:messageId',
+  validateParams(
+    conversationIdParamsSchema.extend({
+      messageId: z.uuid(),
+    }),
+  ),
+  deleteMessageController,
+);
+
 export default router;
