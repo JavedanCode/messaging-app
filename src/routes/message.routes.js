@@ -4,6 +4,7 @@ import {
   createAttachmentMessageController,
   createMessageController,
   getConversationMessagesController,
+  deleteMessageController,
 } from '../controllers/message.controller.js';
 
 import { authenticate } from '../middleware/authenticate.js';
@@ -11,7 +12,7 @@ import { uploadAttachment } from '../middleware/upload.js';
 
 import { validate, validateParams, validateQuery } from '../middleware/validate.js';
 
-import { conversationIdParamsSchema } from '../schemas/conversation.schema.js';
+import { conversationIdParamsSchema, messageParamsSchema } from '../schemas/conversation.schema.js';
 
 import { createMessageSchema, messagePaginationSchema } from '../schemas/message.schema.js';
 
@@ -42,11 +43,7 @@ router.get(
 
 router.delete(
   '/:conversationId/messages/:messageId',
-  validateParams(
-    conversationIdParamsSchema.extend({
-      messageId: z.uuid(),
-    }),
-  ),
+  validateParams(messageParamsSchema),
   deleteMessageController,
 );
 
