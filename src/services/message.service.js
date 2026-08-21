@@ -2,6 +2,8 @@ import { prisma } from '../db/prisma.js';
 
 import { AppError } from '../errors/AppError.js';
 
+import { emitNewMessage } from '../sockets/message.socket.js';
+
 const messageInclude = {
   sender: {
     select: {
@@ -58,6 +60,8 @@ export async function createMessage(conversationId, senderId, data) {
       lastMessageAt: message.createdAt,
     },
   });
+
+  emitNewMessage(message);
 
   return message;
 }
