@@ -4,7 +4,7 @@ function getConversationRoom(conversationId) {
   return `conversation:${conversationId}`;
 }
 
-export function registerConversationSocket(io, socket) {
+export function registerConversationSocket(socket) {
   socket.on('conversation:join', async (conversationId, callback) => {
     try {
       await requireConversationMember(conversationId, socket.user.id);
