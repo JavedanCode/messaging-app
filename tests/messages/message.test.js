@@ -661,7 +661,7 @@ describe('Message API', () => {
 
       expect(response.body.message.attachmentSize).toBeGreaterThan(0);
       expect(response.body.message.content).toBeNull();
-      expect(response.body.message.attachmentUrl).toBeNull();
+      expect(response.body.message.attachmentUrl).toMatch(/^attachments\/[0-9a-f-]{36}\.png$/);
     });
 
     it('uploads a file attachment', async () => {
@@ -701,7 +701,7 @@ describe('Message API', () => {
 
       expect(response.body.message.attachmentSize).toBeGreaterThan(0);
       expect(response.body.message.content).toBeNull();
-      expect(response.body.message.attachmentUrl).toBeNull();
+      expect(response.body.message.attachmentUrl).toMatch(/^attachments\/[0-9a-f-]{36}\.txt$/);
     });
 
     it('creates the attachment message with the authenticated user as the sender', async () => {

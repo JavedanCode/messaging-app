@@ -1,6 +1,7 @@
 import { prisma } from '../db/prisma.js';
 import { AppError } from '../errors/AppError.js';
 import { emitNewMessage } from '../sockets/message.socket.js';
+import { deleteAttachment, uploadAttachment } from './attachment-storage.service.js';
 
 const messageInclude = {
   sender: {
@@ -69,38 +70,69 @@ export async function createMessage(conversationId, senderId, data) {
 }
 
 export async function createAttachmentMessage(conversationId, senderId, file) {
-  await requireConversationMember(conversationId, senderId);
-
-  if (!file) {
-    throw new AppError('An attachment is required.', 400, 'ATTACHMENT_REQUIRED');
-  }
-
-  const type = file.mimetype.startsWith('image/') ? 'IMAGE' : 'FILE';
-
-  const message = await prisma.message.create({
-    data: {
-      conversationId,
-      senderId,
-      type,
-      attachmentName: file.originalname,
-      attachmentMimeType: file.mimetype,
-      attachmentSize: file.size,
-    },
-    include: messageInclude,
-  });
-
-  await prisma.conversation.update({
+  const conversation = await prisma.conversation.findUnique({
     where: {
       id: conversationId,
     },
-    data: {
-      lastMessageAt: message.createdAt,
+    select: {
+      id: true,
     },
   });
 
-  emitNewMessage(message);
+  if (!conversation) {
+    throw new AppError('Conversation not found.', 404);
+  }
 
-  return message;
+  const member = await prisma.conversationMember.findUnique({
+    where: {
+      conversationId_userId: {
+        conversationId,
+        userId: senderId,
+      },
+    },
+  });
+
+  if (!member) {
+    throw new AppError('You are not a member of this conversation.', 403);
+  }
+
+  if (!file) {
+    throw new AppError('Attachment file is required.', 400, 'FILE_REQUIRED');
+  }
+
+  const attachment = await uploadAttachment(file);
+  const type = file.mimetype.startsWith('image/') ? 'IMAGE' : 'FILE';
+
+  try {
+    const message = await prisma.message.create({
+      data: {
+        conversationId,
+        senderId,
+        type,
+        attachmentUrl: attachment.key,
+        attachmentName: attachment.originalName,
+        attachmentMimeType: attachment.contentType,
+        attachmentSize: attachment.size,
+      },
+      include: messageInclude,
+    });
+
+    await prisma.conversation.update({
+      where: {
+        id: conversationId,
+      },
+      data: {
+        lastMessageAt: message.createdAt,
+      },
+    });
+
+    emitNewMessage(message);
+
+    return message;
+  } catch (error) {
+    await deleteAttachment(attachment.key).catch(() => {});
+    throw error;
+  }
 }
 
 export async function getConversationMessages(conversationId, userId, limit = 50) {
