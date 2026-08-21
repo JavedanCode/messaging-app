@@ -3,6 +3,7 @@ import { Server } from 'socket.io';
 import { env } from '../config/env.js';
 import { authenticateSocket } from './middleware.js';
 import { registerConversationSocket } from './conversation.socket.js';
+
 import { setSocketServer } from './io.js';
 
 export function createSocketServer(server) {
@@ -18,7 +19,13 @@ export function createSocketServer(server) {
   io.use(authenticateSocket);
 
   io.on('connection', (socket) => {
+    console.log(`Socket connected: ${socket.user.username}`);
+
     registerConversationSocket(socket);
+
+    socket.on('disconnect', () => {
+      console.log(`Socket disconnected: ${socket.user.username}`);
+    });
   });
 
   return io;
