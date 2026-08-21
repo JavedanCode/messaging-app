@@ -27,3 +27,17 @@ export function validateParams(schema) {
     return next();
   };
 }
+
+export function validateQuery(schema) {
+  return (req, res, next) => {
+    const result = schema.safeParse(req.query);
+
+    if (!result.success) {
+      return next(result.error);
+    }
+
+    req.query = result.data;
+
+    return next();
+  };
+}
