@@ -24,6 +24,7 @@ export async function resetRateLimiters() {
   for (const limiter of limiters) {
     await limiter.resetKey('127.0.0.1');
     await limiter.resetKey('::ffff:127.0.0.1');
+    await limiter.resetKey('::1');
   }
 }
 

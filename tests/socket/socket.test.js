@@ -5,8 +5,9 @@ import { io as createClient } from 'socket.io-client';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import app from '../../src/app.js';
-import { createSocketServer } from '../../src/sockets/index.js';
 import { prisma } from '../../src/db/prisma.js';
+import { generateAccessToken } from '../../src/services/token.service.js';
+import { createSocketServer } from '../../src/sockets/index.js';
 
 const TEST_PASSWORD = 'StrongPassword123!';
 
@@ -26,23 +27,10 @@ async function createTestUser({ username, email, password = TEST_PASSWORD }) {
   });
 }
 
-async function loginUser({ email, password = TEST_PASSWORD }) {
-  const response = await fetch(`http://localhost:${server.address().port}/auth/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      email,
-      password,
-    }),
-  });
+function createAuthCookie(userId) {
+  const accessToken = generateAccessToken(userId);
 
-  expect(response.status).toBe(200);
-
-  const cookies = response.headers.getSetCookie();
-
-  return cookies.map((cookie) => cookie.split(';')[0]).join('; ');
+  return `accessToken=${encodeURIComponent(accessToken)}`;
 }
 
 function connectSocket(cookie) {
@@ -82,14 +70,7 @@ async function closeSocket(socket) {
     socket.disconnect();
   }
 
-  await new Promise((resolve) => {
-    if (socket.disconnected) {
-      resolve();
-      return;
-    }
-
-    socket.once('disconnect', resolve);
-  });
+  socket.removeAllListeners();
 }
 
 describe('Socket.IO', () => {
@@ -140,10 +121,7 @@ describe('Socket.IO', () => {
         email: 'alice@example.com',
       });
 
-      const cookie = await loginUser({
-        email: user.email,
-      });
-
+      const cookie = createAuthCookie(user.id);
       const socket = connectSocket(cookie);
 
       await waitForConnect(socket);
@@ -184,9 +162,7 @@ describe('Socket.IO', () => {
         email: 'alice@example.com',
       });
 
-      const cookie = await loginUser({
-        email: user.email,
-      });
+      const cookie = createAuthCookie(user.id);
 
       await prisma.user.delete({
         where: {
@@ -236,10 +212,7 @@ describe('Socket.IO', () => {
         },
       });
 
-      const cookie = await loginUser({
-        email: user.email,
-      });
-
+      const cookie = createAuthCookie(user.id);
       const socket = connectSocket(cookie);
 
       await waitForConnect(socket);
@@ -294,10 +267,7 @@ describe('Socket.IO', () => {
         },
       });
 
-      const cookie = await loginUser({
-        email: charlie.email,
-      });
-
+      const cookie = createAuthCookie(charlie.id);
       const socket = connectSocket(cookie);
 
       await waitForConnect(socket);
@@ -345,10 +315,7 @@ describe('Socket.IO', () => {
         },
       });
 
-      const cookie = await loginUser({
-        email: user.email,
-      });
-
+      const cookie = createAuthCookie(user.id);
       const socket = connectSocket(cookie);
 
       await waitForConnect(socket);
@@ -369,6 +336,291 @@ describe('Socket.IO', () => {
       });
 
       await closeSocket(socket);
+    });
+  });
+
+  describe('message events', () => {
+    it('broadcasts a new message to members in the conversation room', async () => {
+      const alice = await createTestUser({
+        username: 'alice',
+        email: 'alice@example.com',
+      });
+
+      const bob = await createTestUser({
+        username: 'bob',
+        email: 'bob@example.com',
+      });
+
+      const conversation = await prisma.conversation.create({
+        data: {
+          type: 'DIRECT',
+          directKey: [alice.id, bob.id].sort().join(':'),
+          createdById: alice.id,
+          members: {
+            create: [
+              {
+                userId: alice.id,
+                role: 'MEMBER',
+              },
+              {
+                userId: bob.id,
+                role: 'MEMBER',
+              },
+            ],
+          },
+        },
+      });
+
+      const aliceCookie = createAuthCookie(alice.id);
+      const bobCookie = createAuthCookie(bob.id);
+
+      const aliceSocket = connectSocket(aliceCookie);
+      const bobSocket = connectSocket(bobCookie);
+
+      try {
+        await Promise.all([waitForConnect(aliceSocket), waitForConnect(bobSocket)]);
+
+        const [joinAlice, joinBob] = await Promise.all([
+          new Promise((resolve) => {
+            aliceSocket.emit('conversation:join', conversation.id, resolve);
+          }),
+          new Promise((resolve) => {
+            bobSocket.emit('conversation:join', conversation.id, resolve);
+          }),
+        ]);
+
+        expect(joinAlice).toEqual({
+          success: true,
+          conversationId: conversation.id,
+        });
+
+        expect(joinBob).toEqual({
+          success: true,
+          conversationId: conversation.id,
+        });
+
+        const aliceMessagePromise = waitForEvent(aliceSocket, 'message:new');
+
+        const bobMessagePromise = waitForEvent(bobSocket, 'message:new');
+
+        const response = await fetch(
+          `http://localhost:${server.address().port}/conversations/${conversation.id}/messages`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Cookie: aliceCookie,
+            },
+            body: JSON.stringify({
+              content: 'Hello Bob!',
+            }),
+          },
+        );
+
+        expect(response.status).toBe(201);
+
+        const responseBody = await response.json();
+
+        const [aliceMessage, bobMessage] = await Promise.all([
+          aliceMessagePromise,
+          bobMessagePromise,
+        ]);
+
+        expect(aliceMessage).toMatchObject({
+          id: responseBody.message.id,
+          conversationId: conversation.id,
+          senderId: alice.id,
+          type: 'TEXT',
+          content: 'Hello Bob!',
+          sender: {
+            id: alice.id,
+            username: 'alice',
+            displayName: null,
+            avatarUrl: null,
+          },
+        });
+
+        expect(bobMessage).toEqual(aliceMessage);
+
+        const persistedMessage = await prisma.message.findUnique({
+          where: {
+            id: responseBody.message.id,
+          },
+        });
+
+        expect(persistedMessage).not.toBeNull();
+        expect(persistedMessage.conversationId).toBe(conversation.id);
+        expect(persistedMessage.senderId).toBe(alice.id);
+        expect(persistedMessage.content).toBe('Hello Bob!');
+      } finally {
+        await closeSocket(aliceSocket);
+        await closeSocket(bobSocket);
+      }
+    }, 15000);
+
+    it('does not broadcast a message to a user outside the conversation', async () => {
+      const alice = await createTestUser({
+        username: 'alice',
+        email: 'alice@example.com',
+      });
+
+      const bob = await createTestUser({
+        username: 'bob',
+        email: 'bob@example.com',
+      });
+
+      const charlie = await createTestUser({
+        username: 'charlie',
+        email: 'charlie@example.com',
+      });
+
+      const conversation = await prisma.conversation.create({
+        data: {
+          type: 'DIRECT',
+          directKey: [alice.id, bob.id].sort().join(':'),
+          createdById: alice.id,
+          members: {
+            create: [
+              {
+                userId: alice.id,
+                role: 'MEMBER',
+              },
+              {
+                userId: bob.id,
+                role: 'MEMBER',
+              },
+            ],
+          },
+        },
+      });
+
+      const aliceCookie = createAuthCookie(alice.id);
+      const charlieCookie = createAuthCookie(charlie.id);
+
+      const aliceSocket = connectSocket(aliceCookie);
+      const charlieSocket = connectSocket(charlieCookie);
+
+      try {
+        await Promise.all([waitForConnect(aliceSocket), waitForConnect(charlieSocket)]);
+
+        const joinResult = await new Promise((resolve) => {
+          aliceSocket.emit('conversation:join', conversation.id, resolve);
+        });
+
+        expect(joinResult).toEqual({
+          success: true,
+          conversationId: conversation.id,
+        });
+
+        let charlieReceivedMessage = false;
+
+        charlieSocket.once('message:new', () => {
+          charlieReceivedMessage = true;
+        });
+
+        const response = await fetch(
+          `http://localhost:${server.address().port}/conversations/${conversation.id}/messages`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Cookie: aliceCookie,
+            },
+            body: JSON.stringify({
+              content: 'Private message',
+            }),
+          },
+        );
+
+        expect(response.status).toBe(201);
+
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        expect(charlieReceivedMessage).toBe(false);
+      } finally {
+        await closeSocket(aliceSocket);
+        await closeSocket(charlieSocket);
+      }
+    });
+
+    it('does not broadcast a message to a member who has not joined the room', async () => {
+      const alice = await createTestUser({
+        username: 'alice',
+        email: 'alice@example.com',
+      });
+
+      const bob = await createTestUser({
+        username: 'bob',
+        email: 'bob@example.com',
+      });
+
+      const conversation = await prisma.conversation.create({
+        data: {
+          type: 'DIRECT',
+          directKey: [alice.id, bob.id].sort().join(':'),
+          createdById: alice.id,
+          members: {
+            create: [
+              {
+                userId: alice.id,
+                role: 'MEMBER',
+              },
+              {
+                userId: bob.id,
+                role: 'MEMBER',
+              },
+            ],
+          },
+        },
+      });
+
+      const aliceCookie = createAuthCookie(alice.id);
+      const bobCookie = createAuthCookie(bob.id);
+
+      const aliceSocket = connectSocket(aliceCookie);
+      const bobSocket = connectSocket(bobCookie);
+
+      try {
+        await Promise.all([waitForConnect(aliceSocket), waitForConnect(bobSocket)]);
+
+        const joinResult = await new Promise((resolve) => {
+          aliceSocket.emit('conversation:join', conversation.id, resolve);
+        });
+
+        expect(joinResult).toEqual({
+          success: true,
+          conversationId: conversation.id,
+        });
+
+        let bobReceivedMessage = false;
+
+        bobSocket.once('message:new', () => {
+          bobReceivedMessage = true;
+        });
+
+        const response = await fetch(
+          `http://localhost:${server.address().port}/conversations/${conversation.id}/messages`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Cookie: aliceCookie,
+            },
+            body: JSON.stringify({
+              content: 'Bob has not joined yet.',
+            }),
+          },
+        );
+
+        expect(response.status).toBe(201);
+
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        expect(bobReceivedMessage).toBe(false);
+      } finally {
+        await closeSocket(aliceSocket);
+        await closeSocket(bobSocket);
+      }
     });
   });
 });
