@@ -13,3 +13,17 @@ export function validate(schema) {
     return next();
   };
 }
+
+export function validateParams(schema) {
+  return (req, res, next) => {
+    const result = schema.safeParse(req.params);
+
+    if (!result.success) {
+      return next(result.error);
+    }
+
+    req.params = result.data;
+
+    return next();
+  };
+}
