@@ -36,7 +36,7 @@ export function validateQuery(schema) {
       return next(result.error);
     }
 
-    req.query = result.data;
+    res.locals.query = result.data;
 
     return next();
   };
