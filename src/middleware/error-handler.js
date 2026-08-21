@@ -1,3 +1,4 @@
+import multer from 'multer';
 import { ZodError } from 'zod';
 import { Prisma } from '../../generated/prisma/client.ts';
 
@@ -16,6 +17,37 @@ export function errorHandler(error, req, res, _next) {
           field: issue.path.join('.'),
           message: issue.message,
         })),
+      },
+    });
+  }
+
+  // Multer errors are expected client errors caused by invalid file uploads.
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'FILE_TOO_LARGE',
+          message: 'File size must not exceed 4 MB.',
+        },
+      });
+    }
+
+    if (error.code === 'LIMIT_UNEXPECTED_FILE') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'UNSUPPORTED_FILE_TYPE',
+          message: 'This file type is not supported.',
+        },
+      });
+    }
+
+    return res.status(400).json({
+      success: false,
+      error: {
+        code: 'INVALID_FILE_UPLOAD',
+        message: 'The uploaded file is invalid.',
       },
     });
   }
