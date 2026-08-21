@@ -173,3 +173,61 @@ export async function getConversationMessages(conversationId, userId, limit = 50
     include: messageInclude,
   });
 }
+
+export async function deleteMessage(conversationId, messageId, userId) {
+  const conversation = await prisma.conversation.findUnique({
+    where: {
+      id: conversationId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!conversation) {
+    throw new AppError('Conversation not found.', 404);
+  }
+
+  const member = await prisma.conversationMember.findUnique({
+    where: {
+      conversationId_userId: {
+        conversationId,
+        userId,
+      },
+    },
+  });
+
+  if (!member) {
+    throw new AppError('You are not a member of this conversation.', 403);
+  }
+
+  const message = await prisma.message.findUnique({
+    where: {
+      id: messageId,
+    },
+    select: {
+      id: true,
+      conversationId: true,
+      senderId: true,
+      attachmentUrl: true,
+    },
+  });
+
+  if (!message || message.conversationId !== conversationId) {
+    throw new AppError('Message not found.', 404);
+  }
+
+  if (message.senderId !== userId) {
+    throw new AppError('You can only delete your own messages.', 403);
+  }
+
+  if (message.attachmentUrl) {
+    await deleteAttachment(message.attachmentUrl);
+  }
+
+  await prisma.message.delete({
+    where: {
+      id: message.id,
+    },
+  });
+}
