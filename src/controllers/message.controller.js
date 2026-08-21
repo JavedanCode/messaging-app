@@ -26,7 +26,7 @@ export async function getConversationMessagesController(req, res) {
   const messages = await getConversationMessages(
     req.params.conversationId,
     req.user.id,
-    req.query.limit,
+    res.locals.query.limit,
   );
 
   res.status(200).json({

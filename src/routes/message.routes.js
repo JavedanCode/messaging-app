@@ -1,11 +1,13 @@
 import { Router } from 'express';
 
 import {
+  createAttachmentMessageController,
   createMessageController,
   getConversationMessagesController,
 } from '../controllers/message.controller.js';
 
 import { authenticate } from '../middleware/authenticate.js';
+import { uploadAttachment } from '../middleware/upload.js';
 
 import { validate, validateParams, validateQuery } from '../middleware/validate.js';
 
@@ -22,6 +24,13 @@ router.post(
   validateParams(conversationIdParamsSchema),
   validate(createMessageSchema),
   createMessageController,
+);
+
+router.post(
+  '/:conversationId/messages/attachment',
+  validateParams(conversationIdParamsSchema),
+  uploadAttachment,
+  createAttachmentMessageController,
 );
 
 router.get(
