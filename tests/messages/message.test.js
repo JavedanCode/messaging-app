@@ -31,6 +31,18 @@ async function loginUser(email, password = 'StrongPassword123!') {
   return agent;
 }
 
+async function createAuthenticatedAgent(userId) {
+  const agent = request.agent(app);
+
+  const accessToken = jwt.sign({ userId }, env.JWT_ACCESS_SECRET, {
+    expiresIn: env.JWT_ACCESS_EXPIRES_IN,
+  });
+
+  agent.set('Cookie', [`accessToken=${accessToken}`]);
+
+  return agent;
+}
+
 async function createDirectConversation(userAId, userBId) {
   return prisma.conversation.create({
     data: {
@@ -928,6 +940,247 @@ describe('Message API', () => {
           filename: 'document.txt',
           contentType: 'text/plain',
         });
+
+      expect(response.status).toBe(401);
+      expect(response.body.success).toBe(false);
+    });
+  });
+
+  describe('DELETE /conversations/:conversationId/messages/:messageId', () => {
+    it('deletes a text message created by the authenticated user', async () => {
+      const user = await createTestUser({
+        username: 'deleteuser',
+        email: 'deleteuser@example.com',
+      });
+
+      const otherUser = await createTestUser({
+        username: 'deleteother',
+        email: 'deleteother@example.com',
+      });
+
+      const agent = await loginUser(user.email);
+      const conversation = await createDirectConversation(user.id, otherUser.id);
+
+      const messageResponse = await agent.post(`/conversations/${conversation.id}/messages`).send({
+        content: 'Message to delete',
+      });
+
+      expect(messageResponse.status).toBe(201);
+
+      const messageId = messageResponse.body.message.id;
+
+      const response = await agent.delete(
+        `/conversations/${conversation.id}/messages/${messageId}`,
+      );
+
+      expect(response.status).toBe(204);
+
+      const message = await prisma.message.findUnique({
+        where: {
+          id: messageId,
+        },
+      });
+
+      expect(message).toBeNull();
+    });
+
+    it('deletes an attachment message created by the authenticated user', async () => {
+      const user = await createTestUser({
+        username: 'deleteattachment',
+        email: 'deleteattachment@example.com',
+      });
+
+      const otherUser = await createTestUser({
+        username: 'deleteattachmentother',
+        email: 'deleteattachmentother@example.com',
+      });
+
+      const agent = await loginUser(user.email);
+      const conversation = await createDirectConversation(user.id, otherUser.id);
+
+      const uploadResponse = await agent
+        .post(`/conversations/${conversation.id}/messages/attachment`)
+        .attach('file', Buffer.from('attachment to delete'), 'document.txt');
+
+      expect(uploadResponse.status).toBe(201);
+
+      const messageId = uploadResponse.body.message.id;
+
+      const response = await agent.delete(
+        `/conversations/${conversation.id}/messages/${messageId}`,
+      );
+
+      expect(response.status).toBe(204);
+
+      const message = await prisma.message.findUnique({
+        where: {
+          id: messageId,
+        },
+      });
+
+      expect(message).toBeNull();
+    });
+
+    it('rejects a non-member from deleting a message', async () => {
+      const owner = await createTestUser({
+        username: 'deleteowner',
+        email: 'deleteowner@example.com',
+      });
+
+      const member = await createTestUser({
+        username: 'deletemember',
+        email: 'deletemember@example.com',
+      });
+
+      const outsider = await createTestUser({
+        username: 'deleteoutsider',
+        email: 'deleteoutsider@example.com',
+      });
+
+      const ownerAgent = await loginUser(owner.email);
+      const outsiderAgent = await loginUser(outsider.email);
+
+      const conversation = await createDirectConversation(owner.id, member.id);
+
+      const messageResponse = await ownerAgent
+        .post(`/conversations/${conversation.id}/messages`)
+        .send({
+          content: 'Protected message',
+        });
+
+      expect(messageResponse.status).toBe(201);
+
+      const messageId = messageResponse.body.message.id;
+
+      const response = await outsiderAgent.delete(
+        `/conversations/${conversation.id}/messages/${messageId}`,
+      );
+
+      expect(response.status).toBe(403);
+      expect(response.body.success).toBe(false);
+    }, 10000);
+
+    it("rejects another conversation member from deleting someone else's message", async () => {
+      const owner = await createTestUser({
+        username: 'deleteowner2',
+        email: 'deleteowner2@example.com',
+      });
+
+      const member = await createTestUser({
+        username: 'deletemember2',
+        email: 'deletemember2@example.com',
+      });
+
+      const ownerAgent = await loginUser(owner.email);
+
+      const conversation = await createDirectConversation(owner.id, member.id);
+
+      const messageResponse = await ownerAgent
+        .post(`/conversations/${conversation.id}/messages`)
+        .send({
+          content: 'Owner message',
+        });
+
+      expect(messageResponse.status).toBe(201);
+
+      const messageId = messageResponse.body.message.id;
+
+      /*
+       * Authenticate the member directly by creating the session/token
+       * through the same mechanism used by the application.
+       */
+      const memberAgent = await loginUser(member.email);
+
+      const response = await memberAgent.delete(
+        `/conversations/${conversation.id}/messages/${messageId}`,
+      );
+
+      expect(response.status).toBe(403);
+      expect(response.body.success).toBe(false);
+
+      const message = await prisma.message.findUnique({
+        where: {
+          id: messageId,
+        },
+      });
+
+      expect(message).not.toBeNull();
+    }, 10000);
+
+    it('returns 404 for a nonexistent message', async () => {
+      const user = await createTestUser({
+        username: 'deletenotfound',
+        email: 'deletenotfound@example.com',
+      });
+
+      const otherUser = await createTestUser({
+        username: 'deletenotfoundother',
+        email: 'deletenotfoundother@example.com',
+      });
+
+      const agent = await loginUser(user.email);
+      const conversation = await createDirectConversation(user.id, otherUser.id);
+
+      const response = await agent.delete(
+        `/conversations/${conversation.id}/messages/${crypto.randomUUID()}`,
+      );
+
+      expect(response.status).toBe(404);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('returns 404 for a nonexistent conversation', async () => {
+      const user = await createTestUser({
+        username: 'deletenoconversation',
+        email: 'deletenoconversation@example.com',
+      });
+
+      const agent = await loginUser(user.email);
+
+      const response = await agent.delete(
+        `/conversations/${crypto.randomUUID()}/messages/${crypto.randomUUID()}`,
+      );
+
+      expect(response.status).toBe(404);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('rejects an invalid conversation ID', async () => {
+      const user = await createTestUser({
+        username: 'deleteinvalidconversation',
+        email: 'deleteinvalidconversation@example.com',
+      });
+
+      const agent = await loginUser(user.email);
+
+      const response = await agent.delete(
+        `/conversations/not-a-uuid/messages/${crypto.randomUUID()}`,
+      );
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('rejects an invalid message ID', async () => {
+      const user = await createTestUser({
+        username: 'deleteinvalidmessage',
+        email: 'deleteinvalidmessage@example.com',
+      });
+
+      const agent = await loginUser(user.email);
+
+      const response = await agent.delete(
+        `/conversations/${crypto.randomUUID()}/messages/not-a-uuid`,
+      );
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('rejects an unauthenticated request', async () => {
+      const response = await request(app).delete(
+        `/conversations/${crypto.randomUUID()}/messages/${crypto.randomUUID()}`,
+      );
 
       expect(response.status).toBe(401);
       expect(response.body.success).toBe(false);
