@@ -21,6 +21,7 @@ import {
   messagePaginationSchema,
   updateMessageSchema,
   messageParamsSchema,
+  messageAttachmentParamsSchema,
 } from '../schemas/message.schema.js';
 
 const router = Router();
