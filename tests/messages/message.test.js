@@ -1174,4 +1174,247 @@ describe('Message API', () => {
       expect(response.body.success).toBe(false);
     });
   });
+  describe('PATCH /conversations/:conversationId/messages/:messageId', () => {
+    it('updates a text message created by the authenticated user', async () => {
+      const user = await createTestUser({
+        username: 'updateuser',
+        email: 'updateuser@example.com',
+      });
+
+      const otherUser = await createTestUser({
+        username: 'updateother',
+        email: 'updateother@example.com',
+      });
+
+      const agent = await loginUser(user.email);
+      const conversation = await createDirectConversation(user.id, otherUser.id);
+
+      const messageResponse = await agent.post(`/conversations/${conversation.id}/messages`).send({
+        content: 'Original message',
+      });
+
+      expect(messageResponse.status).toBe(201);
+
+      const messageId = messageResponse.body.message.id;
+
+      const response = await agent
+        .patch(`/conversations/${conversation.id}/messages/${messageId}`)
+        .send({
+          content: 'Updated message',
+        });
+
+      expect(response.status).toBe(200);
+
+      expect(response.body).toMatchObject({
+        success: true,
+        message: {
+          id: messageId,
+          content: 'Updated message',
+          type: 'TEXT',
+          senderId: user.id,
+          conversationId: conversation.id,
+        },
+      });
+
+      const message = await prisma.message.findUnique({
+        where: {
+          id: messageId,
+        },
+      });
+
+      expect(message.content).toBe('Updated message');
+    }, 10000);
+
+    it('trims surrounding whitespace from updated content', async () => {
+      const user = await createTestUser({
+        username: 'updatetrim',
+        email: 'updatetrim@example.com',
+      });
+
+      const otherUser = await createTestUser({
+        username: 'updatetrimother',
+        email: 'updatetrimother@example.com',
+      });
+
+      const agent = await loginUser(user.email);
+      const conversation = await createDirectConversation(user.id, otherUser.id);
+
+      const messageResponse = await agent.post(`/conversations/${conversation.id}/messages`).send({
+        content: 'Original message',
+      });
+
+      const response = await agent
+        .patch(`/conversations/${conversation.id}/messages/${messageResponse.body.message.id}`)
+        .send({
+          content: '   Updated message   ',
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.message.content).toBe('Updated message');
+    }, 10000);
+
+    it('rejects another conversation member from editing someone else’s message', async () => {
+      const owner = await createTestUser({
+        username: 'updateowner',
+        email: 'updateowner@example.com',
+      });
+
+      const member = await createTestUser({
+        username: 'updatemember',
+        email: 'updatemember@example.com',
+      });
+
+      const ownerAgent = await loginUser(owner.email);
+      const memberAgent = await loginUser(member.email);
+
+      const conversation = await createDirectConversation(owner.id, member.id);
+
+      const messageResponse = await ownerAgent
+        .post(`/conversations/${conversation.id}/messages`)
+        .send({
+          content: 'Owner message',
+        });
+
+      const response = await memberAgent
+        .patch(`/conversations/${conversation.id}/messages/${messageResponse.body.message.id}`)
+        .send({
+          content: 'Hacked message',
+        });
+
+      expect(response.status).toBe(403);
+      expect(response.body.success).toBe(false);
+    }, 10000);
+
+    it('rejects a non-member from editing a message', async () => {
+      const owner = await createTestUser({
+        username: 'updatenonmemberowner',
+        email: 'updatenonmemberowner@example.com',
+      });
+
+      const member = await createTestUser({
+        username: 'updatenonmember',
+        email: 'updatenonmember@example.com',
+      });
+
+      const outsider = await createTestUser({
+        username: 'updateoutsider',
+        email: 'updateoutsider@example.com',
+      });
+
+      const ownerAgent = await loginUser(owner.email);
+      const outsiderAgent = await loginUser(outsider.email);
+
+      const conversation = await createDirectConversation(owner.id, member.id);
+
+      const messageResponse = await ownerAgent
+        .post(`/conversations/${conversation.id}/messages`)
+        .send({
+          content: 'Owner message',
+        });
+
+      const response = await outsiderAgent
+        .patch(`/conversations/${conversation.id}/messages/${messageResponse.body.message.id}`)
+        .send({
+          content: 'Hacked message',
+        });
+
+      expect(response.status).toBe(403);
+      expect(response.body.success).toBe(false);
+    }, 10000);
+
+    it('rejects editing an attachment message', async () => {
+      const user = await createTestUser({
+        username: 'updateattachment',
+        email: 'updateattachment@example.com',
+      });
+
+      const otherUser = await createTestUser({
+        username: 'updateattachmentother',
+        email: 'updateattachmentother@example.com',
+      });
+
+      const agent = await loginUser(user.email);
+      const conversation = await createDirectConversation(user.id, otherUser.id);
+
+      const uploadResponse = await agent
+        .post(`/conversations/${conversation.id}/messages/attachment`)
+        .attach('file', Buffer.from('attachment'), 'document.txt');
+
+      expect(uploadResponse.status).toBe(201);
+
+      const response = await agent
+        .patch(`/conversations/${conversation.id}/messages/${uploadResponse.body.message.id}`)
+        .send({
+          content: 'Trying to edit attachment',
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('MESSAGE_NOT_EDITABLE');
+    }, 10000);
+
+    it('returns 404 for a nonexistent message', async () => {
+      const user = await createTestUser({
+        username: 'updatenotfound',
+        email: 'updatenotfound@example.com',
+      });
+
+      const otherUser = await createTestUser({
+        username: 'updatenotfoundother',
+        email: 'updatenotfoundother@example.com',
+      });
+
+      const agent = await loginUser(user.email);
+      const conversation = await createDirectConversation(user.id, otherUser.id);
+
+      const response = await agent
+        .patch(`/conversations/${conversation.id}/messages/${crypto.randomUUID()}`)
+        .send({
+          content: 'Updated message',
+        });
+
+      expect(response.status).toBe(404);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('rejects invalid message content', async () => {
+      const user = await createTestUser({
+        username: 'updateinvalid',
+        email: 'updateinvalid@example.com',
+      });
+
+      const otherUser = await createTestUser({
+        username: 'updateinvalidother',
+        email: 'updateinvalidother@example.com',
+      });
+
+      const agent = await loginUser(user.email);
+      const conversation = await createDirectConversation(user.id, otherUser.id);
+
+      const messageResponse = await agent.post(`/conversations/${conversation.id}/messages`).send({
+        content: 'Original message',
+      });
+
+      const response = await agent
+        .patch(`/conversations/${conversation.id}/messages/${messageResponse.body.message.id}`)
+        .send({
+          content: '   ',
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('rejects an unauthenticated request', async () => {
+      const response = await request(app)
+        .patch(`/conversations/${crypto.randomUUID()}/messages/${crypto.randomUUID()}`)
+        .send({
+          content: 'Updated message',
+        });
+
+      expect(response.status).toBe(401);
+      expect(response.body.success).toBe(false);
+    });
+  });
 });
