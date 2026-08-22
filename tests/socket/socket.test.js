@@ -870,4 +870,306 @@ describe('Socket.IO', () => {
       }
     }, 15000);
   });
+
+  describe('typing indicators', () => {
+    it('broadcasts typing:start to other members in the conversation room', async () => {
+      const alice = await createTestUser({
+        username: 'typingalice',
+        email: 'typingalice@example.com',
+      });
+
+      const bob = await createTestUser({
+        username: 'typingbob',
+        email: 'typingbob@example.com',
+      });
+
+      const conversation = await prisma.conversation.create({
+        data: {
+          type: 'DIRECT',
+          directKey: [alice.id, bob.id].sort().join(':'),
+          createdById: alice.id,
+          members: {
+            create: [
+              {
+                userId: alice.id,
+                role: 'MEMBER',
+              },
+              {
+                userId: bob.id,
+                role: 'MEMBER',
+              },
+            ],
+          },
+        },
+      });
+
+      const aliceCookie = createAuthCookie(alice.id);
+      const bobCookie = createAuthCookie(bob.id);
+
+      const aliceSocket = connectSocket(aliceCookie);
+      const bobSocket = connectSocket(bobCookie);
+
+      try {
+        await Promise.all([waitForConnect(aliceSocket), waitForConnect(bobSocket)]);
+
+        const [aliceJoin, bobJoin] = await Promise.all([
+          new Promise((resolve) => {
+            aliceSocket.emit('conversation:join', conversation.id, resolve);
+          }),
+          new Promise((resolve) => {
+            bobSocket.emit('conversation:join', conversation.id, resolve);
+          }),
+        ]);
+
+        expect(aliceJoin).toEqual({
+          success: true,
+          conversationId: conversation.id,
+        });
+
+        expect(bobJoin).toEqual({
+          success: true,
+          conversationId: conversation.id,
+        });
+
+        const typingEvent = waitForEvent(bobSocket, 'typing:start');
+
+        aliceSocket.emit('typing:start', conversation.id);
+
+        await expect(typingEvent).resolves.toMatchObject({
+          conversationId: conversation.id,
+          userId: alice.id,
+        });
+      } finally {
+        await closeSocket(aliceSocket);
+        await closeSocket(bobSocket);
+      }
+    });
+
+    it('broadcasts typing:stop to other members in the conversation room', async () => {
+      const alice = await createTestUser({
+        username: 'typingstopalice',
+        email: 'typingstopalice@example.com',
+      });
+
+      const bob = await createTestUser({
+        username: 'typingstopbob',
+        email: 'typingstopbob@example.com',
+      });
+
+      const conversation = await prisma.conversation.create({
+        data: {
+          type: 'DIRECT',
+          directKey: [alice.id, bob.id].sort().join(':'),
+          createdById: alice.id,
+          members: {
+            create: [
+              {
+                userId: alice.id,
+                role: 'MEMBER',
+              },
+              {
+                userId: bob.id,
+                role: 'MEMBER',
+              },
+            ],
+          },
+        },
+      });
+
+      const aliceCookie = createAuthCookie(alice.id);
+      const bobCookie = createAuthCookie(bob.id);
+
+      const aliceSocket = connectSocket(aliceCookie);
+      const bobSocket = connectSocket(bobCookie);
+
+      try {
+        await Promise.all([waitForConnect(aliceSocket), waitForConnect(bobSocket)]);
+
+        const [aliceJoin, bobJoin] = await Promise.all([
+          new Promise((resolve) => {
+            aliceSocket.emit('conversation:join', conversation.id, resolve);
+          }),
+          new Promise((resolve) => {
+            bobSocket.emit('conversation:join', conversation.id, resolve);
+          }),
+        ]);
+
+        expect(aliceJoin).toEqual({
+          success: true,
+          conversationId: conversation.id,
+        });
+
+        expect(bobJoin).toEqual({
+          success: true,
+          conversationId: conversation.id,
+        });
+
+        const typingEvent = waitForEvent(bobSocket, 'typing:stop');
+
+        aliceSocket.emit('typing:stop', conversation.id);
+
+        await expect(typingEvent).resolves.toMatchObject({
+          conversationId: conversation.id,
+          userId: alice.id,
+        });
+      } finally {
+        await closeSocket(aliceSocket);
+        await closeSocket(bobSocket);
+      }
+    });
+
+    it('does not send typing events back to the sender', async () => {
+      const alice = await createTestUser({
+        username: 'typingself',
+        email: 'typingself@example.com',
+      });
+
+      const bob = await createTestUser({
+        username: 'typingselfbob',
+        email: 'typingselfbob@example.com',
+      });
+
+      const conversation = await prisma.conversation.create({
+        data: {
+          type: 'DIRECT',
+          directKey: [alice.id, bob.id].sort().join(':'),
+          createdById: alice.id,
+          members: {
+            create: [
+              {
+                userId: alice.id,
+                role: 'MEMBER',
+              },
+              {
+                userId: bob.id,
+                role: 'MEMBER',
+              },
+            ],
+          },
+        },
+      });
+
+      const aliceCookie = createAuthCookie(alice.id);
+      const bobCookie = createAuthCookie(bob.id);
+
+      const aliceSocket = connectSocket(aliceCookie);
+      const bobSocket = connectSocket(bobCookie);
+
+      try {
+        await Promise.all([waitForConnect(aliceSocket), waitForConnect(bobSocket)]);
+
+        const [aliceJoin, bobJoin] = await Promise.all([
+          new Promise((resolve) => {
+            aliceSocket.emit('conversation:join', conversation.id, resolve);
+          }),
+          new Promise((resolve) => {
+            bobSocket.emit('conversation:join', conversation.id, resolve);
+          }),
+        ]);
+
+        expect(aliceJoin).toEqual({
+          success: true,
+          conversationId: conversation.id,
+        });
+
+        expect(bobJoin).toEqual({
+          success: true,
+          conversationId: conversation.id,
+        });
+
+        let senderReceivedEvent = false;
+
+        aliceSocket.once('typing:start', () => {
+          senderReceivedEvent = true;
+        });
+
+        const receiverEvent = waitForEvent(bobSocket, 'typing:start');
+
+        aliceSocket.emit('typing:start', conversation.id);
+
+        await expect(receiverEvent).resolves.toMatchObject({
+          conversationId: conversation.id,
+          userId: alice.id,
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        expect(senderReceivedEvent).toBe(false);
+      } finally {
+        await closeSocket(aliceSocket);
+        await closeSocket(bobSocket);
+      }
+    });
+
+    it('does not broadcast typing events from a non-member', async () => {
+      const alice = await createTestUser({
+        username: 'typingmember',
+        email: 'typingmember@example.com',
+      });
+
+      const bob = await createTestUser({
+        username: 'typingmemberbob',
+        email: 'typingmemberbob@example.com',
+      });
+
+      const outsider = await createTestUser({
+        username: 'typingoutsider',
+        email: 'typingoutsider@example.com',
+      });
+
+      const conversation = await prisma.conversation.create({
+        data: {
+          type: 'DIRECT',
+          directKey: [alice.id, bob.id].sort().join(':'),
+          createdById: alice.id,
+          members: {
+            create: [
+              {
+                userId: alice.id,
+                role: 'MEMBER',
+              },
+              {
+                userId: bob.id,
+                role: 'MEMBER',
+              },
+            ],
+          },
+        },
+      });
+
+      const aliceCookie = createAuthCookie(alice.id);
+      const outsiderCookie = createAuthCookie(outsider.id);
+
+      const aliceSocket = connectSocket(aliceCookie);
+      const outsiderSocket = connectSocket(outsiderCookie);
+
+      try {
+        await Promise.all([waitForConnect(aliceSocket), waitForConnect(outsiderSocket)]);
+
+        const joinResult = await new Promise((resolve) => {
+          aliceSocket.emit('conversation:join', conversation.id, resolve);
+        });
+
+        expect(joinResult).toEqual({
+          success: true,
+          conversationId: conversation.id,
+        });
+
+        let receivedEvent = false;
+
+        aliceSocket.once('typing:start', () => {
+          receivedEvent = true;
+        });
+
+        outsiderSocket.emit('typing:start', conversation.id);
+
+        await new Promise((resolve) => setTimeout(resolve, 200));
+
+        expect(receivedEvent).toBe(false);
+      } finally {
+        await closeSocket(aliceSocket);
+        await closeSocket(outsiderSocket);
+      }
+    });
+  });
 });

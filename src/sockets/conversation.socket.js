@@ -31,4 +31,31 @@ export function registerConversationSocket(socket) {
       conversationId,
     });
   });
+
+  socket.on('typing:start', async (conversationId) => {
+    try {
+      await requireConversationMember(conversationId, socket.user.id);
+
+      socket.to(getConversationRoom(conversationId)).emit('typing:start', {
+        conversationId,
+        userId: socket.user.id,
+      });
+    } catch {
+      // Ignore invalid typing events. The client does not need an
+      // authorization error for a transient UI event.
+    }
+  });
+
+  socket.on('typing:stop', async (conversationId) => {
+    try {
+      await requireConversationMember(conversationId, socket.user.id);
+
+      socket.to(getConversationRoom(conversationId)).emit('typing:stop', {
+        conversationId,
+        userId: socket.user.id,
+      });
+    } catch {
+      // Ignore invalid typing events.
+    }
+  });
 }
