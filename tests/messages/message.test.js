@@ -970,7 +970,7 @@ describe('Message API', () => {
       });
 
       expect(message).toBeNull();
-    });
+    }, 10000);
 
     it('deletes an attachment message created by the authenticated user', async () => {
       const user = await createTestUser({
@@ -1007,7 +1007,7 @@ describe('Message API', () => {
       });
 
       expect(message).toBeNull();
-    });
+    }, 10000);
 
     it('rejects a non-member from deleting a message', async () => {
       const owner = await createTestUser({

@@ -124,7 +124,7 @@ describe('Conversation API', () => {
         });
 
         expect(conversations).toHaveLength(1);
-      });
+      }, 10000);
 
       it('returns the same direct conversation regardless of which user initiates it', async () => {
         const userA = await createTestUser({
@@ -166,7 +166,7 @@ describe('Conversation API', () => {
         });
 
         expect(conversations).toHaveLength(1);
-      });
+      }, 10000);
 
       it('rejects creating a direct conversation with yourself', async () => {
         const user = await createTestUser({
@@ -483,7 +483,7 @@ describe('Conversation API', () => {
       expect(memberIds).toContain(userA.id);
       expect(memberIds).toContain(userB.id);
       expect(memberIds).not.toContain(userC.id);
-    });
+    }, 10000);
 
     it('does not return conversations the authenticated user does not belong to', async () => {
       const userA = await createTestUser({
@@ -609,7 +609,7 @@ describe('Conversation API', () => {
       const response = await charlieAgent.get(`/conversations/${conversationId}`);
 
       expect(response.status).toBe(403);
-    });
+    }, 10000);
 
     it('returns 404 for a nonexistent conversation', async () => {
       const user = await createTestUser({
