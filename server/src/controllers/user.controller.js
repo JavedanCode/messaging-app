@@ -3,11 +3,21 @@ import {
   updateUserProfile,
   changeUsername,
   deleteUserAccount,
+  searchUsers,
 } from '../services/user.service.js';
 
 import { requestEmailChange, confirmEmailChange } from '../services/email-change.service.js';
 
 import { accessTokenCookieOptions, refreshTokenCookieOptions } from '../config/cookies.js';
+
+export async function searchUsersController(req, res) {
+  const users = await searchUsers(req.query.q, req.user.id);
+
+  return res.status(200).json({
+    success: true,
+    users,
+  });
+}
 
 export async function updateProfile(req, res, next) {
   try {

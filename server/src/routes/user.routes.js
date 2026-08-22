@@ -7,11 +7,12 @@ import {
   requestEmailChangeController,
   confirmEmailChangeController,
   deleteAccount,
+  searchUsersController,
 } from '../controllers/user.controller.js';
 
 import { authenticate } from '../middleware/authenticate.js';
 
-import { validate } from '../middleware/validate.js';
+import { validate, validateQuery } from '../middleware/validate.js';
 
 import {
   updateProfileSchema,
@@ -20,6 +21,7 @@ import {
   confirmEmailChangeSchema,
   deleteAccountSchema,
   changePasswordSchema,
+  userSearchSchema,
 } from '../schemas/user.schema.js';
 
 const router = Router();
@@ -27,6 +29,8 @@ const router = Router();
 router.patch('/me', authenticate, validate(updateProfileSchema), updateProfile);
 
 router.patch('/me/password', authenticate, validate(changePasswordSchema), changePassword);
+
+router.get('/search', authenticate, validateQuery(userSearchSchema), searchUsersController);
 
 router.patch(
   '/me/username',

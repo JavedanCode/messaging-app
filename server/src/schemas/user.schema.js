@@ -50,3 +50,7 @@ export const changePasswordSchema = z.object({
 export const deleteAccountSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required.').optional(),
 });
+
+export const userSearchSchema = z.object({
+  q: z.string().trim().min(1).max(50),
+});

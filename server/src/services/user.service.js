@@ -19,6 +19,42 @@ export async function findUserById(userId) {
   });
 }
 
+export async function searchUsers(query, currentUserId) {
+  const users = await prisma.user.findMany({
+    where: {
+      id: {
+        not: currentUserId,
+      },
+      OR: [
+        {
+          username: {
+            contains: query,
+            mode: 'insensitive',
+          },
+        },
+        {
+          displayName: {
+            contains: query,
+            mode: 'insensitive',
+          },
+        },
+      ],
+    },
+    select: {
+      id: true,
+      username: true,
+      displayName: true,
+      avatarUrl: true,
+    },
+    orderBy: {
+      username: 'asc',
+    },
+    take: 20,
+  });
+
+  return users;
+}
+
 export async function createUser({ username, email, passwordHash }) {
   // Perform friendly application-level checks before attempting the database insert.
   // The database unique constraints remain the final protection against race conditions.
