@@ -1,4 +1,6 @@
-import { DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import crypto from 'node:crypto';
 
 import { r2BucketName, r2Client } from '../config/r2.js';
@@ -42,4 +44,17 @@ function getFileExtension(filename) {
   }
 
   return filename.slice(lastDot).toLowerCase();
+}
+
+export async function getAttachmentUrl(key) {
+  return getSignedUrl(
+    r2Client,
+    new GetObjectCommand({
+      Bucket: r2BucketName,
+      Key: key,
+    }),
+    {
+      expiresIn: 300,
+    },
+  );
 }
