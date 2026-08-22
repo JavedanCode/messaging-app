@@ -40,6 +40,10 @@ jobs:
       EMAIL_FROM: test@example.com
       PASSWORD_RESET_URL: http://localhost:5173/reset-password
       EMAIL_CHANGE_URL: http://localhost:5173/change-email
+      R2_ACCOUNT_ID: ci-test-account-id
+      R2_ACCESS_KEY_ID: ci-test-access-key-id
+      R2_SECRET_ACCESS_KEY: ci-test-secret-access-key
+      R2_BUCKET_NAME: ci-test-bucket
 
     steps:
       - name: Checkout repository
