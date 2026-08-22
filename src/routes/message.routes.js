@@ -5,6 +5,7 @@ import {
   createMessageController,
   getConversationMessagesController,
   deleteMessageController,
+  updateMessageController,
 } from '../controllers/message.controller.js';
 
 import { authenticate } from '../middleware/authenticate.js';
@@ -12,9 +13,14 @@ import { uploadAttachment } from '../middleware/upload.js';
 
 import { validate, validateParams, validateQuery } from '../middleware/validate.js';
 
-import { conversationIdParamsSchema, messageParamsSchema } from '../schemas/conversation.schema.js';
+import { conversationIdParamsSchema } from '../schemas/conversation.schema.js';
 
-import { createMessageSchema, messagePaginationSchema } from '../schemas/message.schema.js';
+import {
+  createMessageSchema,
+  messagePaginationSchema,
+  updateMessageSchema,
+  messageParamsSchema,
+} from '../schemas/message.schema.js';
 
 const router = Router();
 
@@ -32,6 +38,13 @@ router.post(
   validateParams(conversationIdParamsSchema),
   uploadAttachment,
   createAttachmentMessageController,
+);
+
+router.patch(
+  '/:conversationId/messages/:messageId',
+  validateParams(messageParamsSchema),
+  validate(updateMessageSchema),
+  updateMessageController,
 );
 
 router.get(
