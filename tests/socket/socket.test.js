@@ -750,5 +750,124 @@ describe('Socket.IO', () => {
         await closeSocket(bobSocket);
       }
     }, 15000);
+
+    it('broadcasts a deleted message to members in the conversation room', async () => {
+      const alice = await createTestUser({
+        username: 'deletealice',
+        email: 'deletealice@example.com',
+      });
+
+      const bob = await createTestUser({
+        username: 'deletebob',
+        email: 'deletebob@example.com',
+      });
+
+      const conversation = await prisma.conversation.create({
+        data: {
+          type: 'DIRECT',
+          directKey: [alice.id, bob.id].sort().join(':'),
+          createdById: alice.id,
+          members: {
+            create: [
+              {
+                userId: alice.id,
+                role: 'MEMBER',
+              },
+              {
+                userId: bob.id,
+                role: 'MEMBER',
+              },
+            ],
+          },
+        },
+      });
+
+      const aliceCookie = createAuthCookie(alice.id);
+      const bobCookie = createAuthCookie(bob.id);
+
+      const aliceSocket = connectSocket(aliceCookie);
+      const bobSocket = connectSocket(bobCookie);
+
+      try {
+        await Promise.all([waitForConnect(aliceSocket), waitForConnect(bobSocket)]);
+
+        const [aliceJoin, bobJoin] = await Promise.all([
+          new Promise((resolve) => {
+            aliceSocket.emit('conversation:join', conversation.id, resolve);
+          }),
+          new Promise((resolve) => {
+            bobSocket.emit('conversation:join', conversation.id, resolve);
+          }),
+        ]);
+
+        expect(aliceJoin).toEqual({
+          success: true,
+          conversationId: conversation.id,
+        });
+
+        expect(bobJoin).toEqual({
+          success: true,
+          conversationId: conversation.id,
+        });
+
+        const createResponse = await fetch(
+          `http://localhost:${server.address().port}/conversations/${conversation.id}/messages`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Cookie: aliceCookie,
+            },
+            body: JSON.stringify({
+              content: 'Message to delete',
+            }),
+          },
+        );
+
+        expect(createResponse.status).toBe(201);
+
+        const createdMessage = await createResponse.json();
+        const messageId = createdMessage.message.id;
+
+        const aliceDeletePromise = waitForEvent(aliceSocket, 'message:deleted');
+
+        const bobDeletePromise = waitForEvent(bobSocket, 'message:deleted');
+
+        const deleteResponse = await fetch(
+          `http://localhost:${server.address().port}/conversations/${conversation.id}/messages/${messageId}`,
+          {
+            method: 'DELETE',
+            headers: {
+              Cookie: aliceCookie,
+            },
+          },
+        );
+
+        expect(deleteResponse.status).toBe(204);
+
+        const [aliceEvent, bobEvent] = await Promise.all([aliceDeletePromise, bobDeletePromise]);
+
+        expect(aliceEvent).toEqual({
+          messageId,
+          conversationId: conversation.id,
+        });
+
+        expect(bobEvent).toEqual({
+          messageId,
+          conversationId: conversation.id,
+        });
+
+        const deletedMessage = await prisma.message.findUnique({
+          where: {
+            id: messageId,
+          },
+        });
+
+        expect(deletedMessage).toBeNull();
+      } finally {
+        await closeSocket(aliceSocket);
+        await closeSocket(bobSocket);
+      }
+    }, 15000);
   });
 });
