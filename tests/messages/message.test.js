@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import request from 'supertest';
+import crypto from 'node:crypto';
 
 import { prisma } from '../../src/db/prisma.js';
 import { resetRateLimiters } from '../../src/middleware/rate-limit.js';
@@ -1412,6 +1413,151 @@ describe('Message API', () => {
         .send({
           content: 'Updated message',
         });
+
+      expect(response.status).toBe(401);
+      expect(response.body.success).toBe(false);
+    });
+  });
+
+  describe('GET /conversations/:conversationId/messages/:messageId/attachment', () => {
+    it('returns a signed URL for an attachment owned by the conversation', async () => {
+      const user = await createTestUser({
+        username: 'attachmenturluser',
+        email: 'attachmenturluser@example.com',
+      });
+
+      const otherUser = await createTestUser({
+        username: 'attachmenturlother',
+        email: 'attachmenturlother@example.com',
+      });
+
+      const agent = await loginUser(user.email);
+      const conversation = await createDirectConversation(user.id, otherUser.id);
+
+      const uploadResponse = await agent
+        .post(`/conversations/${conversation.id}/messages/attachment`)
+        .attach('file', Buffer.from('test attachment'), 'document.txt');
+
+      expect(uploadResponse.status).toBe(201);
+
+      const messageId = uploadResponse.body.message.id;
+
+      const response = await agent.get(
+        `/conversations/${conversation.id}/messages/${messageId}/attachment`,
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({
+        success: true,
+      });
+
+      expect(response.body.url).toEqual(expect.any(String));
+      expect(response.body.url).toContain('X-Amz-');
+    }, 10000);
+
+    it('rejects a non-member from retrieving an attachment', async () => {
+      const owner = await createTestUser({
+        username: 'attachmenturlowner',
+        email: 'attachmenturlowner@example.com',
+      });
+
+      const member = await createTestUser({
+        username: 'attachmenturlmember',
+        email: 'attachmenturlmember@example.com',
+      });
+
+      const outsider = await createTestUser({
+        username: 'attachmenturloutsider',
+        email: 'attachmenturloutsider@example.com',
+      });
+
+      const ownerAgent = await loginUser(owner.email);
+      const outsiderAgent = await loginUser(outsider.email);
+
+      const conversation = await createDirectConversation(owner.id, member.id);
+
+      const uploadResponse = await ownerAgent
+        .post(`/conversations/${conversation.id}/messages/attachment`)
+        .attach('file', Buffer.from('test attachment'), 'document.txt');
+
+      expect(uploadResponse.status).toBe(201);
+
+      const messageId = uploadResponse.body.message.id;
+
+      const response = await outsiderAgent.get(
+        `/conversations/${conversation.id}/messages/${messageId}/attachment`,
+      );
+
+      expect(response.status).toBe(403);
+      expect(response.body.success).toBe(false);
+    }, 10000);
+
+    it('returns 404 when the message does not exist', async () => {
+      const user = await createTestUser({
+        username: 'attachmenturlmissing',
+        email: 'attachmenturlmissing@example.com',
+      });
+
+      const otherUser = await createTestUser({
+        username: 'attachmenturlmissingother',
+        email: 'attachmenturlmissingother@example.com',
+      });
+
+      const agent = await loginUser(user.email);
+      const conversation = await createDirectConversation(user.id, otherUser.id);
+
+      const response = await agent.get(
+        `/conversations/${conversation.id}/messages/${crypto.randomUUID()}/attachment`,
+      );
+
+      expect(response.status).toBe(404);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('returns 404 when the message has no attachment', async () => {
+      const user = await createTestUser({
+        username: 'attachmenturltext',
+        email: 'attachmenturltext@example.com',
+      });
+
+      const otherUser = await createTestUser({
+        username: 'attachmenturltextother',
+        email: 'attachmenturltextother@example.com',
+      });
+
+      const agent = await loginUser(user.email);
+      const conversation = await createDirectConversation(user.id, otherUser.id);
+
+      const messageResponse = await agent.post(`/conversations/${conversation.id}/messages`).send({
+        content: 'This is a text message.',
+      });
+
+      expect(messageResponse.status).toBe(201);
+
+      const response = await agent.get(
+        `/conversations/${conversation.id}/messages/${messageResponse.body.message.id}/attachment`,
+      );
+
+      expect(response.status).toBe(404);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('rejects an unauthenticated request', async () => {
+      const user = await createTestUser({
+        username: 'attachmenturlauth',
+        email: 'attachmenturlauth@example.com',
+      });
+
+      const otherUser = await createTestUser({
+        username: 'attachmenturlauthother',
+        email: 'attachmenturlauthother@example.com',
+      });
+
+      const conversation = await createDirectConversation(user.id, otherUser.id);
+
+      const response = await request(app).get(
+        `/conversations/${conversation.id}/messages/${crypto.randomUUID()}/attachment`,
+      );
 
       expect(response.status).toBe(401);
       expect(response.body.success).toBe(false);
