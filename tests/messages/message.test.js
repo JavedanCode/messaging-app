@@ -31,18 +31,6 @@ async function loginUser(email, password = 'StrongPassword123!') {
   return agent;
 }
 
-async function createAuthenticatedAgent(userId) {
-  const agent = request.agent(app);
-
-  const accessToken = jwt.sign({ userId }, env.JWT_ACCESS_SECRET, {
-    expiresIn: env.JWT_ACCESS_EXPIRES_IN,
-  });
-
-  agent.set('Cookie', [`accessToken=${accessToken}`]);
-
-  return agent;
-}
-
 async function createDirectConversation(userAId, userBId) {
   return prisma.conversation.create({
     data: {
