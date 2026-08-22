@@ -3,6 +3,7 @@ import {
   createMessage,
   deleteMessage,
   getConversationMessages,
+  updateMessage,
 } from '../services/message.service.js';
 
 export async function createMessageController(req, res) {
@@ -18,6 +19,20 @@ export async function createAttachmentMessageController(req, res) {
   const message = await createAttachmentMessage(req.params.conversationId, req.user.id, req.file);
 
   res.status(201).json({
+    success: true,
+    message,
+  });
+}
+
+export async function updateMessageController(req, res) {
+  const message = await updateMessage(
+    req.params.conversationId,
+    req.params.messageId,
+    req.user.id,
+    req.body,
+  );
+
+  res.status(200).json({
     success: true,
     message,
   });
