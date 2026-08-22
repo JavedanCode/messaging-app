@@ -5,7 +5,11 @@ import {
   emitMessageUpdated,
   emitMessageDeleted,
 } from '../sockets/message.socket.js';
-import { deleteAttachment, uploadAttachment } from './attachment-storage.service.js';
+import {
+  deleteAttachment,
+  getAttachmentUrl,
+  uploadAttachment,
+} from './attachment-storage.service.js';
 
 const messageInclude = {
   sender: {
@@ -44,6 +48,32 @@ async function requireConversationMember(conversationId, userId) {
   if (!member) {
     throw new AppError('You are not a member of this conversation.', 403);
   }
+}
+
+export async function getMessageAttachmentUrl(conversationId, messageId, userId) {
+  await requireConversationMember(conversationId, userId);
+
+  const message = await prisma.message.findUnique({
+    where: {
+      id: messageId,
+    },
+    select: {
+      conversationId: true,
+      attachmentUrl: true,
+    },
+  });
+
+  if (!message || message.conversationId !== conversationId) {
+    throw new AppError('Message not found.', 404);
+  }
+
+  if (!message.attachmentUrl) {
+    throw new AppError('Message does not have an attachment.', 404);
+  }
+
+  const url = await getAttachmentUrl(message.attachmentUrl);
+
+  return url;
 }
 
 export async function createMessage(conversationId, senderId, data) {
