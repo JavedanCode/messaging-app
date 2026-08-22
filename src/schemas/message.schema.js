@@ -20,3 +20,7 @@ export const messageParamsSchema = z.object({
   conversationId: z.uuid(),
   messageId: z.uuid(),
 });
+
+export const messageAttachmentParamsSchema = conversationIdParamsSchema.extend({
+  messageId: z.uuid(),
+});

@@ -6,6 +6,7 @@ import {
   getConversationMessagesController,
   deleteMessageController,
   updateMessageController,
+  getMessageAttachmentUrlController,
 } from '../controllers/message.controller.js';
 
 import { authenticate } from '../middleware/authenticate.js';
@@ -45,6 +46,12 @@ router.patch(
   validateParams(messageParamsSchema),
   validate(updateMessageSchema),
   updateMessageController,
+);
+
+router.get(
+  '/:conversationId/messages/:messageId/attachment',
+  validateParams(messageAttachmentParamsSchema),
+  getMessageAttachmentUrlController,
 );
 
 router.get(
