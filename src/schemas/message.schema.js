@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { conversationIdParamsSchema } from './conversation.schema';
 
 export const createMessageSchema = z.object({
   content: z.string().trim().min(1).max(5000),
