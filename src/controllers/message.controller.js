@@ -4,6 +4,7 @@ import {
   deleteMessage,
   getConversationMessages,
   updateMessage,
+  getMessageAttachmentUrl,
 } from '../services/message.service.js';
 
 export async function createMessageController(req, res) {
@@ -12,6 +13,19 @@ export async function createMessageController(req, res) {
   res.status(201).json({
     success: true,
     message,
+  });
+}
+
+export async function getMessageAttachmentUrlController(req, res) {
+  const url = await getMessageAttachmentUrl(
+    req.params.conversationId,
+    req.params.messageId,
+    req.user.id,
+  );
+
+  res.status(200).json({
+    success: true,
+    url,
   });
 }
 
