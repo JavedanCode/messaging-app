@@ -3,12 +3,14 @@ import { durationToMilliseconds } from '../utils/duration.js';
 
 const isProduction = env.NODE_ENV === 'production';
 
+const sameSite = isProduction ? 'none' : 'lax';
+
 // Authentication cookies are HTTP-only so client-side JavaScript cannot access
 // the tokens. Secure is enabled in production to require HTTPS.
 export const accessTokenCookieOptions = {
   httpOnly: true,
   secure: isProduction,
-  sameSite: 'lax',
+  sameSite,
   path: '/',
   maxAge: durationToMilliseconds(env.JWT_ACCESS_EXPIRES_IN),
 };
@@ -18,7 +20,7 @@ export const accessTokenCookieOptions = {
 export const refreshTokenCookieOptions = {
   httpOnly: true,
   secure: isProduction,
-  sameSite: 'lax',
+  sameSite,
   path: '/auth',
   maxAge: durationToMilliseconds(env.JWT_REFRESH_EXPIRES_IN),
 };
