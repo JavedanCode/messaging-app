@@ -15,3 +15,8 @@ export const updateMessageSchema = z.object({
     .min(1, 'Message content is required.')
     .max(5000, 'Message content must not exceed 5000 characters.'),
 });
+
+export const messageParamsSchema = z.object({
+  conversationId: z.uuid(),
+  messageId: z.uuid(),
+});

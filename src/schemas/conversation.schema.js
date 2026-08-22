@@ -25,8 +25,3 @@ export const conversationParamsSchema = conversationIdSchema;
 export const conversationIdParamsSchema = z.object({
   conversationId: z.uuid(),
 });
-
-export const messageParamsSchema = z.object({
-  conversationId: z.uuid(),
-  messageId: z.uuid(),
-});
