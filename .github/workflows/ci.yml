@@ -28,6 +28,10 @@ jobs:
           --health-timeout=5s
           --health-retries=5
 
+    defaults:
+      run:
+        working-directory: server
+
     env:
       NODE_ENV: test
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/express_auth_api_test
@@ -54,6 +58,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: server/package-lock.json
 
       - name: Install dependencies
         run: npm ci
