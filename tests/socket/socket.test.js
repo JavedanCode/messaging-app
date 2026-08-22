@@ -622,5 +622,133 @@ describe('Socket.IO', () => {
         await closeSocket(bobSocket);
       }
     });
+
+    it('broadcasts an updated message to members in the conversation room', async () => {
+      const alice = await createTestUser({
+        username: 'updatealice',
+        email: 'updatealice@example.com',
+      });
+
+      const bob = await createTestUser({
+        username: 'updatebob',
+        email: 'updatebob@example.com',
+      });
+
+      const conversation = await prisma.conversation.create({
+        data: {
+          type: 'DIRECT',
+          directKey: [alice.id, bob.id].sort().join(':'),
+          createdById: alice.id,
+          members: {
+            create: [
+              {
+                userId: alice.id,
+                role: 'MEMBER',
+              },
+              {
+                userId: bob.id,
+                role: 'MEMBER',
+              },
+            ],
+          },
+        },
+      });
+
+      const aliceCookie = createAuthCookie(alice.id);
+      const bobCookie = createAuthCookie(bob.id);
+
+      const aliceSocket = connectSocket(aliceCookie);
+      const bobSocket = connectSocket(bobCookie);
+
+      try {
+        await Promise.all([waitForConnect(aliceSocket), waitForConnect(bobSocket)]);
+
+        const [joinAlice, joinBob] = await Promise.all([
+          new Promise((resolve) => {
+            aliceSocket.emit('conversation:join', conversation.id, resolve);
+          }),
+          new Promise((resolve) => {
+            bobSocket.emit('conversation:join', conversation.id, resolve);
+          }),
+        ]);
+
+        expect(joinAlice).toEqual({
+          success: true,
+          conversationId: conversation.id,
+        });
+
+        expect(joinBob).toEqual({
+          success: true,
+          conversationId: conversation.id,
+        });
+
+        const createResponse = await fetch(
+          `http://localhost:${server.address().port}/conversations/${conversation.id}/messages`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Cookie: aliceCookie,
+            },
+            body: JSON.stringify({
+              content: 'Original message',
+            }),
+          },
+        );
+
+        expect(createResponse.status).toBe(201);
+
+        const createdMessage = await createResponse.json();
+        const messageId = createdMessage.message.id;
+
+        const aliceUpdatePromise = waitForEvent(aliceSocket, 'message:updated');
+
+        const bobUpdatePromise = waitForEvent(bobSocket, 'message:updated');
+
+        const updateResponse = await fetch(
+          `http://localhost:${server.address().port}/conversations/${conversation.id}/messages/${messageId}`,
+          {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              Cookie: aliceCookie,
+            },
+            body: JSON.stringify({
+              content: 'Updated message',
+            }),
+          },
+        );
+
+        expect(updateResponse.status).toBe(200);
+
+        const responseBody = await updateResponse.json();
+
+        const [aliceMessage, bobMessage] = await Promise.all([
+          aliceUpdatePromise,
+          bobUpdatePromise,
+        ]);
+
+        expect(aliceMessage).toMatchObject({
+          id: messageId,
+          conversationId: conversation.id,
+          senderId: alice.id,
+          type: 'TEXT',
+          content: 'Updated message',
+        });
+
+        expect(bobMessage).toEqual(aliceMessage);
+
+        expect(responseBody.message).toMatchObject({
+          id: messageId,
+          conversationId: conversation.id,
+          senderId: alice.id,
+          type: 'TEXT',
+          content: 'Updated message',
+        });
+      } finally {
+        await closeSocket(aliceSocket);
+        await closeSocket(bobSocket);
+      }
+    }, 15000);
   });
 });
