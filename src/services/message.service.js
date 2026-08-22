@@ -1,6 +1,10 @@
 import { prisma } from '../db/prisma.js';
 import { AppError } from '../errors/AppError.js';
-import { emitNewMessage, emitMessageUpdated } from '../sockets/message.socket.js';
+import {
+  emitNewMessage,
+  emitMessageUpdated,
+  emitMessageDeleted,
+} from '../sockets/message.socket.js';
 import { deleteAttachment, uploadAttachment } from './attachment-storage.service.js';
 
 const messageInclude = {
@@ -272,4 +276,6 @@ export async function deleteMessage(conversationId, messageId, userId) {
       id: message.id,
     },
   });
+
+  emitMessageDeleted(conversationId, message.id);
 }
