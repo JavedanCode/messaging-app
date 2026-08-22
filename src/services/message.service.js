@@ -1,6 +1,6 @@
 import { prisma } from '../db/prisma.js';
 import { AppError } from '../errors/AppError.js';
-import { emitNewMessage } from '../sockets/message.socket.js';
+import { emitNewMessage, emitMessageUpdated } from '../sockets/message.socket.js';
 import { deleteAttachment, uploadAttachment } from './attachment-storage.service.js';
 
 const messageInclude = {
@@ -67,6 +67,48 @@ export async function createMessage(conversationId, senderId, data) {
   emitNewMessage(message);
 
   return message;
+}
+
+export async function updateMessage(conversationId, messageId, userId, data) {
+  await requireConversationMember(conversationId, userId);
+
+  const message = await prisma.message.findUnique({
+    where: {
+      id: messageId,
+    },
+    select: {
+      id: true,
+      conversationId: true,
+      senderId: true,
+      type: true,
+    },
+  });
+
+  if (!message || message.conversationId !== conversationId) {
+    throw new AppError('Message not found.', 404);
+  }
+
+  if (message.senderId !== userId) {
+    throw new AppError('You can only edit your own messages.', 403);
+  }
+
+  if (message.type !== 'TEXT') {
+    throw new AppError('Only text messages can be edited.', 400, 'MESSAGE_NOT_EDITABLE');
+  }
+
+  const updatedMessage = await prisma.message.update({
+    where: {
+      id: message.id,
+    },
+    data: {
+      content: data.content,
+    },
+    include: messageInclude,
+  });
+
+  emitMessageUpdated(updatedMessage);
+
+  return updatedMessage;
 }
 
 export async function createAttachmentMessage(conversationId, senderId, file) {
