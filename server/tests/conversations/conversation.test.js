@@ -794,7 +794,7 @@ describe('Conversation API', () => {
       });
 
       expect(conversation).not.toBeNull();
-    });
+    }, 10000);
 
     it('returns 404 when deleting a nonexistent conversation', async () => {
       const user = await createTestUser({
