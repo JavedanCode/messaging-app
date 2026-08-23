@@ -30,7 +30,7 @@ export const refreshTokenCookieOptions = {
 export const oauthStateCookieOptions = {
   httpOnly: true,
   secure: isProduction,
-  sameSite: 'lax',
+  sameSite,
   maxAge: 10 * 60 * 1000,
   path: '/auth',
 };
