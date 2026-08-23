@@ -34,9 +34,10 @@ export async function processGoogleProfile(profile, { findOrCreateOAuthUser, pro
 export function extractGoogleProfile(profile) {
   const emailData = profile.emails?.[0];
 
-  const emailVerified = emailData?.verified ?? profile._json?.email_verified;
+  const email = emailData?.value ?? profile._json?.email;
+  const emailVerified = profile._json?.email_verified;
 
-  if (!emailData?.value || !emailVerified) {
+  if (!email || emailVerified !== true) {
     throw new AppError(
       'A verified email address is required to link a Google account.',
       401,
@@ -46,7 +47,7 @@ export function extractGoogleProfile(profile) {
 
   return {
     providerAccountId: profile.id,
-    email: emailData.value.toLowerCase(),
+    email: email.toLowerCase(),
     displayName: profile.displayName || null,
     avatarUrl: profile.photos?.[0]?.value || null,
   };
