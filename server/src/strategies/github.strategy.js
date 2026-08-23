@@ -22,6 +22,15 @@ export function configureGitHubStrategy() {
       async (req, accessToken, refreshToken, profile, done) => {
         try {
           if (req.oauthLinking) {
+            console.log('[GitHub OAuth] Raw profile for linking:', {
+              id: profile.id,
+              username: profile.username,
+              displayName: profile.displayName,
+              emails: profile.emails,
+              photos: profile.photos,
+              _json: profile._json,
+            });
+
             const providerData = extractGitHubProfile(profile);
 
             return done(null, providerData);
