@@ -1,13 +1,18 @@
 import { AppError } from '../errors/AppError.js';
 
-export async function processGitHubProfile(profile, { findOrCreateOAuthUser, provider }) {
-  // Prefer GitHub's primary email when available, falling back to the first
-  // available email returned by the provider.
-  const emailData = profile.emails?.find((email) => email.primary) ?? profile.emails?.[0];
+function getGitHubEmail(profile) {
+  const emailData =
+    profile.emails?.find((email) => email.primary && email.value) ??
+    profile.emails?.find((email) => email.value) ??
+    (profile._json?.email ? { value: profile._json.email } : null);
 
-  // A usable email address is required because it is used to identify and
-  // associate the OAuth account with a local user account.
-  if (!emailData?.value) {
+  return emailData?.value?.toLowerCase() ?? null;
+}
+
+export async function processGitHubProfile(profile, { findOrCreateOAuthUser, provider }) {
+  const email = getGitHubEmail(profile);
+
+  if (!email) {
     throw new AppError(
       'A GitHub account with an email address is required.',
       401,
@@ -15,11 +20,10 @@ export async function processGitHubProfile(profile, { findOrCreateOAuthUser, pro
     );
   }
 
-  // Normalize provider data into the application-specific OAuth user shape.
   const user = await findOrCreateOAuthUser({
     provider,
     providerAccountId: profile.id,
-    email: emailData.value.toLowerCase(),
+    email,
     displayName: profile.displayName || profile.username || null,
     avatarUrl: profile.photos?.[0]?.value || null,
   });
@@ -32,9 +36,21 @@ export async function processGitHubProfile(profile, { findOrCreateOAuthUser, pro
 }
 
 export function extractGitHubProfile(profile) {
-  const emailData = profile.emails?.find((email) => email.primary) ?? profile.emails?.[0];
+  console.log('[GitHub OAuth] Extracting profile:', {
+    providerAccountId: profile.id,
+    emails: profile.emails,
+    jsonEmail: profile._json?.email,
+  });
 
-  if (!emailData?.value) {
+  const email = getGitHubEmail(profile);
+
+  if (!email) {
+    console.error('[GitHub OAuth] No email found:', {
+      providerAccountId: profile.id,
+      emails: profile.emails,
+      jsonEmail: profile._json?.email,
+    });
+
     throw new AppError(
       'A GitHub account with an email address is required to link your account.',
       401,
@@ -44,7 +60,7 @@ export function extractGitHubProfile(profile) {
 
   return {
     providerAccountId: profile.id,
-    email: emailData.value.toLowerCase(),
+    email,
     displayName: profile.displayName || profile.username || null,
     avatarUrl: profile.photos?.[0]?.value || null,
   };

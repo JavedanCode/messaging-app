@@ -165,12 +165,10 @@ export async function githubLinkCallback(req, res, next) {
       throw new AppError('OAuth linking failed.', 401, 'OAUTH_AUTHENTICATION_FAILED');
     }
 
-    const providerData = extractGitHubProfile(req.user);
-
     await linkOAuthAccount({
       userId: req.authenticatedUser.id,
       provider: AuthProvider.GITHUB,
-      providerAccountId: providerData.providerAccountId,
+      providerAccountId: req.user.providerAccountId,
     });
 
     return res.redirect(`${env.CLIENT_URL}/settings?oauthLinked=github`);
