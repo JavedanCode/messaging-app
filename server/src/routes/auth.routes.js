@@ -195,6 +195,7 @@ router.get(
     passport.authenticate(
       'google',
       {
+        callbackURL: env.GOOGLE_LINK_CALLBACK_URL,
         session: false,
       },
       (error, user, info) => {
@@ -221,6 +222,7 @@ router.get(
   },
   googleLinkCallback,
 );
+
 router.get('/github', startGitHubOAuth);
 
 router.get('/github/link', authenticate, startGitHubOAuthLink);
@@ -252,6 +254,7 @@ router.get(
     passport.authenticate(
       'github',
       {
+        callbackURL: env.GITHUB_LINK_CALLBACK_URL,
         session: false,
       },
       (error, user, info) => {
