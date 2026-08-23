@@ -5,9 +5,10 @@ export async function processGoogleProfile(profile, { findOrCreateOAuthUser, pro
   // to identify and associate the OAuth account with a local user account.
   const emailData = profile.emails?.[0];
 
-  const emailVerified = emailData?.verified ?? profile._json?.email_verified;
+  const email = emailData?.value ?? profile._json?.email;
+  const emailVerified = profile._json?.email_verified;
 
-  if (!emailData?.value || !emailVerified) {
+  if (!email || !emailVerified !== true) {
     throw new AppError(
       'A verified email address is required to use Google login.',
       401,
