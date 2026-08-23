@@ -16,6 +16,13 @@ export async function findUserById(userId) {
     where: {
       id: userId,
     },
+    include: {
+      accounts: {
+        select: {
+          provider: true,
+        },
+      },
+    },
   });
 }
 

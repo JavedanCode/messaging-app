@@ -63,6 +63,13 @@ export async function login(req, res, next) {
         email: req.user.email,
         displayName: req.user.displayName,
         avatarUrl: req.user.avatarUrl,
+        emailVerifiedAt: req.user.emailVerifiedAt,
+        authProviders: [
+          ...(req.user.passwordHash ? ['LOCAL'] : []),
+          ...(req.user.accounts ?? [])
+            .map((account) => account.provider)
+            .filter((provider) => !(req.user.passwordHash && provider === 'LOCAL')),
+        ],
       },
     });
   } catch (error) {
@@ -71,6 +78,18 @@ export async function login(req, res, next) {
 }
 
 export async function getMe(req, res) {
+  const authProviders = [];
+
+  if (req.user.passwordHash) {
+    authProviders.push('LOCAL');
+  }
+
+  for (const account of req.user.accounts ?? []) {
+    if (!authProviders.includes(account.provider)) {
+      authProviders.push(account.provider);
+    }
+  }
+
   return res.status(200).json({
     success: true,
     user: {
@@ -79,6 +98,8 @@ export async function getMe(req, res) {
       email: req.user.email,
       displayName: req.user.displayName,
       avatarUrl: req.user.avatarUrl,
+      emailVerifiedAt: req.user.emailVerifiedAt,
+      authProviders,
     },
   });
 }
