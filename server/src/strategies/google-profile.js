@@ -7,7 +7,7 @@ export async function processGoogleProfile(profile, { findOrCreateOAuthUser, pro
 
   const emailVerified = emailData?.verified ?? profile._json?.email_verified;
 
-  if (!emailData?.value || emailVerified) {
+  if (!emailData?.value || !emailVerified) {
     throw new AppError(
       'A verified email address is required to use Google login.',
       401,
