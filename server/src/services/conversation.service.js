@@ -49,6 +49,19 @@ export async function findConversationMember(conversationId, userId) {
 }
 
 export async function requireConversationMember(conversationId, userId) {
+  const conversation = await prisma.conversation.findUnique({
+    where: {
+      id: conversationId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!conversation) {
+    throw new AppError('Conversation not found.', 404);
+  }
+
   const member = await findConversationMember(conversationId, userId);
 
   if (!member) {
@@ -151,7 +164,7 @@ export async function createConversation(userId, data) {
 }
 
 export async function getUserConversations(userId) {
-  return prisma.conversation.findMany({
+  const conversations = await prisma.conversation.findMany({
     where: {
       members: {
         some: {
@@ -159,6 +172,7 @@ export async function getUserConversations(userId) {
         },
       },
     },
+
     include: {
       members: {
         include: {
@@ -172,6 +186,7 @@ export async function getUserConversations(userId) {
           },
         },
       },
+
       createdBy: {
         select: {
           id: true,
@@ -180,7 +195,25 @@ export async function getUserConversations(userId) {
           avatarUrl: true,
         },
       },
+
+      messages: {
+        take: 1,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        include: {
+          sender: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              avatarUrl: true,
+            },
+          },
+        },
+      },
     },
+
     orderBy: [
       {
         lastMessageAt: 'desc',
@@ -190,6 +223,11 @@ export async function getUserConversations(userId) {
       },
     ],
   });
+
+  return conversations.map(({ messages, ...conversation }) => ({
+    ...conversation,
+    lastMessage: messages[0] ?? null,
+  }));
 }
 
 export async function getConversationById(conversationId, userId) {
