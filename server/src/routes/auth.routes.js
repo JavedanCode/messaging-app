@@ -45,6 +45,8 @@ import { AppError } from '../errors/AppError.js';
 
 import passport from 'passport';
 
+import { env } from '../config/env.js';
+
 const router = Router();
 
 router.post('/register', registerRateLimiter, validate(registerSchema), register);
@@ -105,13 +107,59 @@ router.get('/google/authorize', (req, res, next) => {
   })(req, res, next);
 });
 
+function handleOAuthCallbackError(error, req, res, next) {
+  if (!error) {
+    return next();
+  }
+
+  const code = error.code || 'OAUTH_AUTHENTICATION_FAILED';
+
+  const allowedCodes = new Set([
+    'OAUTH_ACCOUNT_LINK_REQUIRED',
+    'OAUTH_EMAIL_REQUIRED',
+    'OAUTH_AUTHENTICATION_FAILED',
+    'OAUTH_STATE_INVALID',
+  ]);
+
+  const safeCode = allowedCodes.has(code) ? code : 'OAUTH_AUTHENTICATION_FAILED';
+
+  return res.redirect(`${env.CLIENT_URL}/login?oauthError=${encodeURIComponent(safeCode)}`);
+}
+
 // Passport verifies the provider response and populates req.user before the
 // callback controller creates the application's authentication session.
 router.get(
   '/google/callback',
-  passport.authenticate('google', {
-    session: false,
-  }),
+  (req, res, next) => {
+    passport.authenticate(
+      'google',
+      {
+        session: false,
+      },
+      (error, user, info) => {
+        if (error) {
+          return handleOAuthCallbackError(error, req, res, next);
+        }
+
+        if (!user) {
+          return handleOAuthCallbackError(
+            new AppError(
+              info?.message || 'OAuth authentication failed.',
+              401,
+              info?.code || 'OAUTH_AUTHENTICATION_FAILED',
+            ),
+            req,
+            res,
+            next,
+          );
+        }
+
+        req.user = user;
+
+        return next();
+      },
+    )(req, res, next);
+  },
   googleCallback,
 );
 
@@ -137,9 +185,36 @@ router.get('/github/authorize', (req, res, next) => {
 // callback controller creates the application's authentication session.
 router.get(
   '/github/callback',
-  passport.authenticate('github', {
-    session: false,
-  }),
+  (req, res, next) => {
+    passport.authenticate(
+      'github',
+      {
+        session: false,
+      },
+      (error, user, info) => {
+        if (error) {
+          return handleOAuthCallbackError(error, req, res, next);
+        }
+
+        if (!user) {
+          return handleOAuthCallbackError(
+            new AppError(
+              info?.message || 'OAuth authentication failed.',
+              401,
+              info?.code || 'OAUTH_AUTHENTICATION_FAILED',
+            ),
+            req,
+            res,
+            next,
+          );
+        }
+
+        req.user = user;
+
+        return next();
+      },
+    )(req, res, next);
+  },
   githubCallback,
 );
 
