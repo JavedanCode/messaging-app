@@ -1,37 +1,41 @@
 import { getSocketServer } from './io.js';
 
-function getConversationRoom(conversationId) {
-  return `conversation:${conversationId}`;
+function getUserRoom(userId) {
+  return `user:${userId}`;
 }
 
-export function emitNewMessage(message) {
+function getUserRooms(userIds) {
+  return userIds.map(getUserRoom);
+}
+
+export function emitNewMessage(message, recipientUserIds) {
   const io = getSocketServer();
 
-  if (!io) {
+  if (!io || !recipientUserIds?.length) {
     return;
   }
 
-  io.to(getConversationRoom(message.conversationId)).emit('message:new', message);
+  io.to(getUserRooms(recipientUserIds)).emit('message:new', message);
 }
 
-export function emitMessageUpdated(message) {
+export function emitMessageUpdated(message, recipientUserIds) {
   const io = getSocketServer();
 
-  if (!io) {
+  if (!io || !recipientUserIds?.length) {
     return;
   }
 
-  io.to(getConversationRoom(message.conversationId)).emit('message:updated', message);
+  io.to(getUserRooms(recipientUserIds)).emit('message:updated', message);
 }
 
-export function emitMessageDeleted(conversationId, messageId) {
+export function emitMessageDeleted(conversationId, messageId, recipientUserIds) {
   const io = getSocketServer();
 
-  if (!io) {
+  if (!io || !recipientUserIds?.length) {
     return;
   }
 
-  io.to(getConversationRoom(conversationId)).emit('message:deleted', {
+  io.to(getUserRooms(recipientUserIds)).emit('message:deleted', {
     messageId,
     conversationId,
   });

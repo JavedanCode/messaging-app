@@ -543,7 +543,7 @@ describe('Socket.IO', () => {
       }
     });
 
-    it('does not broadcast a message to a member who has not joined the room', async () => {
+    it('broadcasts a message to a connected member who has not joined the room', async () => {
       const alice = await createTestUser({
         username: 'alice',
         email: 'alice@example.com',
@@ -592,11 +592,7 @@ describe('Socket.IO', () => {
           conversationId: conversation.id,
         });
 
-        let bobReceivedMessage = false;
-
-        bobSocket.once('message:new', () => {
-          bobReceivedMessage = true;
-        });
+        const bobMessagePromise = waitForEvent(bobSocket, 'message:new');
 
         const response = await fetch(
           `http://localhost:${server.address().port}/conversations/${conversation.id}/messages`,
@@ -614,9 +610,14 @@ describe('Socket.IO', () => {
 
         expect(response.status).toBe(201);
 
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        const bobMessage = await bobMessagePromise;
 
-        expect(bobReceivedMessage).toBe(false);
+        expect(bobMessage).toMatchObject({
+          conversationId: conversation.id,
+          senderId: alice.id,
+          type: 'TEXT',
+          content: 'Bob has not joined yet.',
+        });
       } finally {
         await closeSocket(aliceSocket);
         await closeSocket(bobSocket);
@@ -751,7 +752,7 @@ describe('Socket.IO', () => {
       }
     }, 15000);
 
-    it('broadcasts a deleted message to members in the conversation room', async () => {
+    it('broadcasts a deleted message to conversation members', async () => {
       const alice = await createTestUser({
         username: 'deletealice',
         email: 'deletealice@example.com',
@@ -791,25 +792,6 @@ describe('Socket.IO', () => {
       try {
         await Promise.all([waitForConnect(aliceSocket), waitForConnect(bobSocket)]);
 
-        const [aliceJoin, bobJoin] = await Promise.all([
-          new Promise((resolve) => {
-            aliceSocket.emit('conversation:join', conversation.id, resolve);
-          }),
-          new Promise((resolve) => {
-            bobSocket.emit('conversation:join', conversation.id, resolve);
-          }),
-        ]);
-
-        expect(aliceJoin).toEqual({
-          success: true,
-          conversationId: conversation.id,
-        });
-
-        expect(bobJoin).toEqual({
-          success: true,
-          conversationId: conversation.id,
-        });
-
         const createResponse = await fetch(
           `http://localhost:${server.address().port}/conversations/${conversation.id}/messages`,
           {
@@ -829,9 +811,27 @@ describe('Socket.IO', () => {
         const createdMessage = await createResponse.json();
         const messageId = createdMessage.message.id;
 
-        const aliceDeletePromise = waitForEvent(aliceSocket, 'message:deleted');
+        const aliceEventPromise = new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Alice did not receive delete event'));
+          }, 3000);
 
-        const bobDeletePromise = waitForEvent(bobSocket, 'message:deleted');
+          aliceSocket.once('message:deleted', (event) => {
+            clearTimeout(timeout);
+            resolve(event);
+          });
+        });
+
+        const bobEventPromise = new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Bob did not receive delete event'));
+          }, 3000);
+
+          bobSocket.once('message:deleted', (event) => {
+            clearTimeout(timeout);
+            resolve(event);
+          });
+        });
 
         const deleteResponse = await fetch(
           `http://localhost:${server.address().port}/conversations/${conversation.id}/messages/${messageId}`,
@@ -845,7 +845,7 @@ describe('Socket.IO', () => {
 
         expect(deleteResponse.status).toBe(204);
 
-        const [aliceEvent, bobEvent] = await Promise.all([aliceDeletePromise, bobDeletePromise]);
+        const [aliceEvent, bobEvent] = await Promise.all([aliceEventPromise, bobEventPromise]);
 
         expect(aliceEvent).toEqual({
           messageId,
@@ -868,7 +868,7 @@ describe('Socket.IO', () => {
         await closeSocket(aliceSocket);
         await closeSocket(bobSocket);
       }
-    }, 15000);
+    }, 10000);
   });
 
   describe('typing indicators', () => {

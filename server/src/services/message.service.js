@@ -24,6 +24,19 @@ const messageInclude = {
   },
 };
 
+async function getConversationMemberIds(conversationId) {
+  const members = await prisma.conversationMember.findMany({
+    where: {
+      conversationId,
+    },
+    select: {
+      userId: true,
+    },
+  });
+
+  return members.map((member) => member.userId);
+}
+
 export async function getMessageAttachmentUrl(conversationId, messageId, userId) {
   await requireConversationMember(conversationId, userId);
 
@@ -72,7 +85,9 @@ export async function createMessage(conversationId, senderId, data) {
     },
   });
 
-  emitNewMessage(message);
+  const memberIds = await getConversationMemberIds(conversationId);
+
+  emitNewMessage(message, memberIds);
 
   return message;
 }
@@ -114,7 +129,9 @@ export async function updateMessage(conversationId, messageId, userId, data) {
     include: messageInclude,
   });
 
-  emitMessageUpdated(updatedMessage);
+  const memberIds = await getConversationMemberIds(conversationId);
+
+  emitMessageUpdated(updatedMessage, memberIds);
 
   return updatedMessage;
 }
@@ -151,6 +168,7 @@ export async function createAttachmentMessage(conversationId, senderId, file) {
   }
 
   const attachment = await uploadAttachment(file);
+
   const type = file.mimetype.startsWith('image/') ? 'IMAGE' : 'FILE';
 
   try {
@@ -176,7 +194,9 @@ export async function createAttachmentMessage(conversationId, senderId, file) {
       },
     });
 
-    emitNewMessage(message);
+    const memberIds = await getConversationMemberIds(conversationId);
+
+    emitNewMessage(message, memberIds);
 
     return message;
   } catch (error) {
@@ -275,11 +295,13 @@ export async function deleteMessage(conversationId, messageId, userId) {
     await deleteAttachment(message.attachmentUrl);
   }
 
+  const memberIds = await getConversationMemberIds(conversationId);
+
   await prisma.message.delete({
     where: {
       id: message.id,
     },
   });
 
-  emitMessageDeleted(conversationId, message.id);
+  emitMessageDeleted(conversationId, message.id, memberIds);
 }
