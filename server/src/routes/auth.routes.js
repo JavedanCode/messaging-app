@@ -188,6 +188,8 @@ router.get(
   '/google/link/callback',
   authenticate,
   (req, res, next) => {
+    req.oauthLinking = true;
+
     const authenticatedUser = req.user;
 
     passport.authenticate(
@@ -219,7 +221,6 @@ router.get(
   },
   googleLinkCallback,
 );
-
 router.get('/github', startGitHubOAuth);
 
 router.get('/github/link', authenticate, startGitHubOAuthLink);
@@ -244,6 +245,8 @@ router.get(
   '/github/link/callback',
   authenticate,
   (req, res, next) => {
+    req.oauthLinking = true;
+
     const authenticatedUser = req.user;
 
     passport.authenticate(

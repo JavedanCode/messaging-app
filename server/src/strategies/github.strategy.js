@@ -7,14 +7,10 @@ import { findOrCreateOAuthUser } from '../services/oauth.service.js';
 import { processGitHubProfile, extractGitHubProfile } from './github-profile.js';
 
 export function configureGitHubStrategy() {
-  // OAuth strategies are optional. Skip registration when the provider has not
-  // been configured so applications can use only the authentication providers they need.
   if (!env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET || !env.GITHUB_CALLBACK_URL) {
     return;
   }
 
-  // Passport handles the provider-specific OAuth flow; profile normalization
-  // and user/account persistence are delegated to separate modules.
   passport.use(
     new GitHubStrategy(
       {
@@ -25,7 +21,7 @@ export function configureGitHubStrategy() {
       },
       async (req, accessToken, refreshToken, profile, done) => {
         try {
-          if (req.path === '/auth/github/link/callback') {
+          if (req.oauthLinking) {
             const providerData = extractGitHubProfile(profile);
 
             return done(null, providerData);

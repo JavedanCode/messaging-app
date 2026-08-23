@@ -7,14 +7,10 @@ import { findOrCreateOAuthUser } from '../services/oauth.service.js';
 import { processGoogleProfile, extractGoogleProfile } from './google-profile.js';
 
 export function configureGoogleStrategy() {
-  // OAuth strategies are optional. Skip registration when the provider has not
-  // been configured so applications can use only the authentication providers they need.
   if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET || !env.GOOGLE_CALLBACK_URL) {
     return;
   }
 
-  // Passport handles the provider-specific OAuth flow; profile normalization
-  // and user/account persistence are delegated to separate modules.
   passport.use(
     new GoogleStrategy(
       {
@@ -25,7 +21,7 @@ export function configureGoogleStrategy() {
       },
       async (req, accessToken, refreshToken, profile, done) => {
         try {
-          if (req.path === '/auth/google/link/callback') {
+          if (req.oauthLinking) {
             const providerData = extractGoogleProfile(profile);
 
             return done(null, providerData);
