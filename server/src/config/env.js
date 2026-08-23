@@ -27,10 +27,12 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_CALLBACK_URL: z.url().optional(),
+  GOOGLE_LINK_CALLBACK_URL: z.url().optional(),
 
   GITHUB_CLIENT_ID: z.string().optional(),
   GITHUB_CLIENT_SECRET: z.string().optional(),
   GITHUB_CALLBACK_URL: z.url().optional(),
+  GITHUB_LINK_CALLBACK_URL: z.url().optional(),
 
   RESEND_API_KEY: z.string().min(1),
   EMAIL_FROM: z.string().min(1),
