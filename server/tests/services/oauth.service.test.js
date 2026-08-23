@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { prisma } from '../../src/db/prisma.js';
-import { findAccountByProvider, findOrCreateOAuthUser } from '../../src/services/oauth.service.js';
+import {
+  findAccountByProvider,
+  findOrCreateOAuthUser,
+  linkOAuthAccount,
+} from '../../src/services/oauth.service.js';
 import { AuthProvider } from '../../generated/prisma/enums.js';
 
 describe('oauth service', () => {
@@ -103,5 +107,128 @@ describe('oauth service', () => {
     });
 
     expect(user.username).toBe('google_1');
+  });
+
+  it('links a new OAuth account to an existing user', async () => {
+    const user = await prisma.user.create({
+      data: {
+        username: 'localuser',
+        email: 'local@example.com',
+        passwordHash: 'local-password-hash',
+        emailVerifiedAt: new Date(),
+      },
+    });
+
+    const account = await linkOAuthAccount({
+      userId: user.id,
+      provider: AuthProvider.GOOGLE,
+      providerAccountId: 'google-123',
+    });
+
+    expect(account).toMatchObject({
+      userId: user.id,
+      provider: AuthProvider.GOOGLE,
+      providerAccountId: 'google-123',
+    });
+
+    const savedAccount = await findAccountByProvider({
+      provider: AuthProvider.GOOGLE,
+      providerAccountId: 'google-123',
+    });
+
+    expect(savedAccount).not.toBeNull();
+    expect(savedAccount.userId).toBe(user.id);
+  });
+
+  it('links a GitHub account to an existing user', async () => {
+    const user = await prisma.user.create({
+      data: {
+        username: 'localuser',
+        email: 'local@example.com',
+        passwordHash: 'local-password-hash',
+        emailVerifiedAt: new Date(),
+      },
+    });
+
+    const account = await linkOAuthAccount({
+      userId: user.id,
+      provider: AuthProvider.GITHUB,
+      providerAccountId: 'github-123',
+    });
+
+    expect(account).toMatchObject({
+      userId: user.id,
+      provider: AuthProvider.GITHUB,
+      providerAccountId: 'github-123',
+    });
+  });
+
+  it('rejects an OAuth account that is already linked to the same user', async () => {
+    const user = await prisma.user.create({
+      data: {
+        username: 'localuser',
+        email: 'local@example.com',
+        passwordHash: 'local-password-hash',
+        emailVerifiedAt: new Date(),
+      },
+    });
+
+    await prisma.account.create({
+      data: {
+        userId: user.id,
+        provider: AuthProvider.GOOGLE,
+        providerAccountId: 'google-123',
+      },
+    });
+
+    await expect(
+      linkOAuthAccount({
+        userId: user.id,
+        provider: AuthProvider.GOOGLE,
+        providerAccountId: 'google-123',
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'OAUTH_ACCOUNT_ALREADY_LINKED',
+    });
+  });
+
+  it('rejects an OAuth account that is linked to another user', async () => {
+    const firstUser = await prisma.user.create({
+      data: {
+        username: 'firstuser',
+        email: 'first@example.com',
+        passwordHash: 'first-password-hash',
+        emailVerifiedAt: new Date(),
+      },
+    });
+
+    const secondUser = await prisma.user.create({
+      data: {
+        username: 'seconduser',
+        email: 'second@example.com',
+        passwordHash: 'second-password-hash',
+        emailVerifiedAt: new Date(),
+      },
+    });
+
+    await prisma.account.create({
+      data: {
+        userId: secondUser.id,
+        provider: AuthProvider.GOOGLE,
+        providerAccountId: 'google-123',
+      },
+    });
+
+    await expect(
+      linkOAuthAccount({
+        userId: firstUser.id,
+        provider: AuthProvider.GOOGLE,
+        providerAccountId: 'google-123',
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'OAUTH_ACCOUNT_ALREADY_LINKED_TO_ANOTHER_USER',
+    });
   });
 });

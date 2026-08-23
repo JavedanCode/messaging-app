@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { AuthProvider } from '../../generated/prisma/enums.js';
-import { processGoogleProfile } from '../../src/strategies/google-profile.js';
+import { extractGoogleProfile, processGoogleProfile } from '../../src/strategies/google-profile.js';
 
 describe('Google OAuth profile processing', () => {
   it('creates a user from a verified Google profile', async () => {
@@ -118,5 +118,81 @@ describe('Google OAuth profile processing', () => {
       displayName: 'Google User',
       avatarUrl: null,
     });
+  });
+});
+
+describe('extractGoogleProfile', () => {
+  it('extracts the verified Google account for linking', () => {
+    const profile = {
+      id: 'google-123',
+      displayName: 'Google User',
+      emails: [
+        {
+          value: 'User@Example.com',
+          verified: true,
+        },
+      ],
+      photos: [
+        {
+          value: 'https://example.com/avatar.jpg',
+        },
+      ],
+    };
+
+    const result = extractGoogleProfile(profile);
+
+    expect(result).toEqual({
+      providerAccountId: 'google-123',
+      email: 'user@example.com',
+      displayName: 'Google User',
+      avatarUrl: 'https://example.com/avatar.jpg',
+    });
+  });
+
+  it('rejects a Google account without a verified email', () => {
+    const profile = {
+      id: 'google-123',
+      displayName: 'Google User',
+      emails: [
+        {
+          value: 'user@example.com',
+          verified: false,
+        },
+      ],
+    };
+
+    expect(() => extractGoogleProfile(profile)).toThrow(
+      'A verified email address is required to link a Google account.',
+    );
+  });
+
+  it('rejects a Google profile without an email', () => {
+    const profile = {
+      id: 'google-123',
+      displayName: 'Google User',
+      emails: [],
+    };
+
+    expect(() => extractGoogleProfile(profile)).toThrow(
+      'A verified email address is required to link a Google account.',
+    );
+  });
+
+  it('handles a missing profile photo', () => {
+    const profile = {
+      id: 'google-123',
+      displayName: 'Google User',
+      emails: [
+        {
+          value: 'user@example.com',
+          verified: true,
+        },
+      ],
+      photos: [],
+    };
+
+    const result = extractGoogleProfile(profile);
+
+    expect(result.avatarUrl).toBeNull();
   });
 });

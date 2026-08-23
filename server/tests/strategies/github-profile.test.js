@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { processGitHubProfile } from '../../src/strategies/github-profile.js';
+import { extractGitHubProfile, processGitHubProfile } from '../../src/strategies/github-profile.js';
 
 describe('processGitHubProfile', () => {
   it('processes a GitHub profile with a primary email', async () => {
@@ -144,5 +144,85 @@ describe('processGitHubProfile', () => {
     ).rejects.toThrow('A GitHub account with an email address is required.');
 
     expect(findOrCreateOAuthUser).not.toHaveBeenCalled();
+  });
+});
+
+describe('extractGitHubProfile', () => {
+  it('extracts the primary email and provider account ID', () => {
+    const profile = {
+      id: 'github-123',
+      username: 'octocat',
+      displayName: 'The Octocat',
+      emails: [
+        {
+          value: 'secondary@example.com',
+          primary: false,
+        },
+        {
+          value: 'Primary@Example.com',
+          primary: true,
+        },
+      ],
+      photos: [
+        {
+          value: 'https://example.com/avatar.jpg',
+        },
+      ],
+    };
+
+    const result = extractGitHubProfile(profile);
+
+    expect(result).toEqual({
+      providerAccountId: 'github-123',
+      email: 'primary@example.com',
+      displayName: 'The Octocat',
+      avatarUrl: 'https://example.com/avatar.jpg',
+    });
+  });
+
+  it('falls back to the first email when no primary email exists', () => {
+    const profile = {
+      id: 'github-123',
+      username: 'octocat',
+      emails: [
+        {
+          value: 'octocat@example.com',
+          primary: false,
+        },
+      ],
+    };
+
+    const result = extractGitHubProfile(profile);
+
+    expect(result.email).toBe('octocat@example.com');
+    expect(result.providerAccountId).toBe('github-123');
+  });
+
+  it('uses the username when display name is unavailable', () => {
+    const profile = {
+      id: 'github-123',
+      username: 'octocat',
+      emails: [
+        {
+          value: 'octocat@example.com',
+        },
+      ],
+    };
+
+    const result = extractGitHubProfile(profile);
+
+    expect(result.displayName).toBe('octocat');
+  });
+
+  it('rejects a profile without an email', () => {
+    const profile = {
+      id: 'github-123',
+      username: 'octocat',
+      emails: [],
+    };
+
+    expect(() => extractGitHubProfile(profile)).toThrow(
+      'A GitHub account with an email address is required to link your account.',
+    );
   });
 });
