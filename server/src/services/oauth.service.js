@@ -107,6 +107,7 @@ export async function findOrCreateOAuthUser({
         email,
         displayName,
         avatarUrl,
+        emailVerifiedAt: new Date(),
       },
     });
 
