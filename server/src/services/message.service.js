@@ -11,6 +11,8 @@ import {
   uploadAttachment,
 } from './attachment-storage.service.js';
 
+import { requireConversationMember } from './conversation.service.js';
+
 const messageInclude = {
   sender: {
     select: {
@@ -21,34 +23,6 @@ const messageInclude = {
     },
   },
 };
-
-async function requireConversationMember(conversationId, userId) {
-  const conversation = await prisma.conversation.findUnique({
-    where: {
-      id: conversationId,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  if (!conversation) {
-    throw new AppError('Conversation not found.', 404);
-  }
-
-  const member = await prisma.conversationMember.findUnique({
-    where: {
-      conversationId_userId: {
-        conversationId,
-        userId,
-      },
-    },
-  });
-
-  if (!member) {
-    throw new AppError('You are not a member of this conversation.', 403);
-  }
-}
 
 export async function getMessageAttachmentUrl(conversationId, messageId, userId) {
   await requireConversationMember(conversationId, userId);
