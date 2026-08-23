@@ -179,6 +179,7 @@ router.get('/google/link/authorize', (req, res, next) => {
   return passport.authenticate('google', {
     scope: ['profile', 'email'],
     state,
+    callbackURL: env.GOOGLE_LINK_CALLBACK_URL,
     session: false,
   })(req, res, next);
 });
@@ -274,6 +275,21 @@ router.get(
   },
   githubLinkCallback,
 );
+
+router.get('/github/link/authorize', (req, res, next) => {
+  const state = req.cookies.oauthLinkState;
+
+  if (!state) {
+    return next(new AppError('OAuth linking failed.', 401, 'OAUTH_STATE_INVALID'));
+  }
+
+  return passport.authenticate('github', {
+    scope: ['user:email'],
+    state,
+    callbackURL: env.GITHUB_LINK_CALLBACK_URL,
+    session: false,
+  })(req, res, next);
+});
 
 // Passport verifies the provider response and populates req.user before the
 // callback controller creates the application's authentication session.

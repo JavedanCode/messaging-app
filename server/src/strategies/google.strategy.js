@@ -4,7 +4,7 @@ import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { AuthProvider } from '../../generated/prisma/enums.ts';
 import { env } from '../config/env.js';
 import { findOrCreateOAuthUser } from '../services/oauth.service.js';
-import { processGoogleProfile } from './google-profile.js';
+import { processGoogleProfile, extractGoogleProfile } from './google-profile.js';
 
 export function configureGoogleStrategy() {
   // OAuth strategies are optional. Skip registration when the provider has not
@@ -21,9 +21,16 @@ export function configureGoogleStrategy() {
         clientID: env.GOOGLE_CLIENT_ID,
         clientSecret: env.GOOGLE_CLIENT_SECRET,
         callbackURL: env.GOOGLE_CALLBACK_URL,
+        passReqToCallback: true,
       },
-      async (accessToken, refreshToken, profile, done) => {
+      async (req, accessToken, refreshToken, profile, done) => {
         try {
+          if (req.path === '/auth/google/link/callback') {
+            const providerData = extractGoogleProfile(profile);
+
+            return done(null, providerData);
+          }
+
           const user = await processGoogleProfile(profile, {
             findOrCreateOAuthUser,
             provider: AuthProvider.GOOGLE,

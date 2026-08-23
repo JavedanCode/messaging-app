@@ -14,6 +14,11 @@ import { linkOAuthAccount } from '../services/oauth.service.js';
 
 import { generateOAuthState, verifyOAuthState } from '../services/oauth.state.service.js';
 
+import { AuthProvider } from '../../generated/prisma/enums.ts';
+
+import { extractGoogleProfile } from '../strategies/google-profile.js';
+import { extractGitHubProfile } from '../strategies/github-profile.js';
+
 export function startGoogleOAuth(req, res) {
   // Generate a short-lived state value to bind the OAuth callback to the
   // authentication flow initiated by this browser.
@@ -121,14 +126,16 @@ export async function googleLinkCallback(req, res, next) {
 
     res.clearCookie('oauthLinkState', oauthLinkStateCookieOptions);
 
-    if (!req.user) {
+    if (!req.authenticatedUser || !req.user) {
       throw new AppError('OAuth linking failed.', 401, 'OAUTH_AUTHENTICATION_FAILED');
     }
 
+    const providerData = extractGoogleProfile(req.user);
+
     await linkOAuthAccount({
       userId: req.authenticatedUser.id,
-      provider: 'GOOGLE',
-      providerAccountId: req.user.oauthProviderAccountId,
+      provider: AuthProvider.GOOGLE,
+      providerAccountId: providerData.providerAccountId,
     });
 
     return res.redirect(`${env.CLIENT_URL}/settings?oauthLinked=google`);
@@ -160,10 +167,12 @@ export async function githubLinkCallback(req, res, next) {
       throw new AppError('OAuth linking failed.', 401, 'OAUTH_AUTHENTICATION_FAILED');
     }
 
+    const providerData = extractGitHubProfile(req.user);
+
     await linkOAuthAccount({
       userId: req.authenticatedUser.id,
-      provider: 'GITHUB',
-      providerAccountId: req.user.oauthProviderAccountId,
+      provider: AuthProvider.GITHUB,
+      providerAccountId: providerData.providerAccountId,
     });
 
     return res.redirect(`${env.CLIENT_URL}/settings?oauthLinked=github`);

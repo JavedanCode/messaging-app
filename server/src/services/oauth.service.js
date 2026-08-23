@@ -123,6 +123,19 @@ export async function findOrCreateOAuthUser({
   });
 }
 
+export async function getOAuthAccountForLinking({ provider, providerAccountId }) {
+  const existingAccount = await findAccountByProvider({
+    provider,
+    providerAccountId,
+  });
+
+  if (existingAccount) {
+    return existingAccount;
+  }
+
+  return null;
+}
+
 export async function linkOAuthAccount({ userId, provider, providerAccountId }) {
   const existingAccount = await findAccountByProvider({
     provider,

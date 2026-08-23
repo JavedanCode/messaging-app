@@ -4,7 +4,7 @@ import { Strategy as GitHubStrategy } from 'passport-github2';
 import { AuthProvider } from '../../generated/prisma/enums.ts';
 import { env } from '../config/env.js';
 import { findOrCreateOAuthUser } from '../services/oauth.service.js';
-import { processGitHubProfile } from './github-profile.js';
+import { processGitHubProfile, extractGitHubProfile } from './github-profile.js';
 
 export function configureGitHubStrategy() {
   // OAuth strategies are optional. Skip registration when the provider has not
@@ -21,9 +21,16 @@ export function configureGitHubStrategy() {
         clientID: env.GITHUB_CLIENT_ID,
         clientSecret: env.GITHUB_CLIENT_SECRET,
         callbackURL: env.GITHUB_CALLBACK_URL,
+        passReqToCallback: true,
       },
-      async (accessToken, refreshToken, profile, done) => {
+      async (req, accessToken, refreshToken, profile, done) => {
         try {
+          if (req.path === '/auth/github/link/callback') {
+            const providerData = extractGitHubProfile(profile);
+
+            return done(null, providerData);
+          }
+
           const user = await processGitHubProfile(profile, {
             findOrCreateOAuthUser,
             provider: AuthProvider.GITHUB,

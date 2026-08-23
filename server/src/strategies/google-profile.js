@@ -28,3 +28,22 @@ export async function processGoogleProfile(profile, { findOrCreateOAuthUser, pro
     oauthProvider: provider,
   };
 }
+
+export function extractGoogleProfile(profile) {
+  const emailData = profile.emails?.[0];
+
+  if (!emailData?.value || !emailData.verified) {
+    throw new AppError(
+      'A verified email address is required to link a Google account.',
+      401,
+      'OAUTH_EMAIL_REQUIRED',
+    );
+  }
+
+  return {
+    providerAccountId: profile.id,
+    email: emailData.value.toLowerCase(),
+    displayName: profile.displayName || null,
+    avatarUrl: profile.photos?.[0]?.value || null,
+  };
+}
