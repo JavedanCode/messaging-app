@@ -16,9 +16,6 @@ import { generateOAuthState, verifyOAuthState } from '../services/oauth.state.se
 
 import { AuthProvider } from '../../generated/prisma/enums.ts';
 
-import { extractGoogleProfile } from '../strategies/google-profile.js';
-import { extractGitHubProfile } from '../strategies/github-profile.js';
-
 export function startGoogleOAuth(req, res) {
   // Generate a short-lived state value to bind the OAuth callback to the
   // authentication flow initiated by this browser.
