@@ -40,6 +40,8 @@ describe('processGitHubProfile', () => {
 
     expect(result).toEqual({
       id: 'user-123',
+      oauthProvider: 'GITHUB',
+      oauthProviderAccountId: 'github-123',
     });
   });
 

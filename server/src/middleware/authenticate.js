@@ -21,6 +21,7 @@ export async function authenticate(req, res, next) {
     }
 
     req.user = user;
+    req.authenticatedUser = user;
 
     return next();
   } catch (error) {

@@ -3,12 +3,14 @@ import { env } from '../config/env.js';
 import {
   accessTokenCookieOptions,
   oauthStateCookieOptions,
+  oauthLinkStateCookieOptions,
   refreshTokenCookieOptions,
 } from '../config/cookies.js';
 
 import { AppError } from '../errors/AppError.js';
 
 import { createAuthentication } from '../services/auth.service.js';
+import { linkOAuthAccount } from '../services/oauth.service.js';
 
 import { generateOAuthState, verifyOAuthState } from '../services/oauth.state.service.js';
 
@@ -95,6 +97,76 @@ export async function githubCallback(req, res, next) {
     res.cookie('refreshToken', refreshToken, refreshTokenCookieOptions);
 
     return res.redirect(env.CLIENT_URL);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export function startGoogleOAuthLink(req, res) {
+  const state = generateOAuthState();
+
+  res.cookie('oauthLinkState', state, oauthLinkStateCookieOptions);
+
+  return res.redirect('/auth/google/link/authorize');
+}
+
+export async function googleLinkCallback(req, res, next) {
+  try {
+    const receivedState = req.query.state;
+    const expectedState = req.cookies.oauthLinkState;
+
+    if (!verifyOAuthState(expectedState, receivedState)) {
+      throw new AppError('OAuth linking failed.', 401, 'OAUTH_STATE_INVALID');
+    }
+
+    res.clearCookie('oauthLinkState', oauthLinkStateCookieOptions);
+
+    if (!req.user) {
+      throw new AppError('OAuth linking failed.', 401, 'OAUTH_AUTHENTICATION_FAILED');
+    }
+
+    await linkOAuthAccount({
+      userId: req.authenticatedUser.id,
+      provider: 'GOOGLE',
+      providerAccountId: req.user.oauthProviderAccountId,
+    });
+
+    return res.redirect(`${env.CLIENT_URL}/settings?oauthLinked=google`);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export function startGitHubOAuthLink(req, res) {
+  const state = generateOAuthState();
+
+  res.cookie('oauthLinkState', state, oauthLinkStateCookieOptions);
+
+  return res.redirect('/auth/github/link/authorize');
+}
+
+export async function githubLinkCallback(req, res, next) {
+  try {
+    const receivedState = req.query.state;
+    const expectedState = req.cookies.oauthLinkState;
+
+    if (!verifyOAuthState(expectedState, receivedState)) {
+      throw new AppError('OAuth linking failed.', 401, 'OAUTH_STATE_INVALID');
+    }
+
+    res.clearCookie('oauthLinkState', oauthLinkStateCookieOptions);
+
+    if (!req.user) {
+      throw new AppError('OAuth linking failed.', 401, 'OAUTH_AUTHENTICATION_FAILED');
+    }
+
+    await linkOAuthAccount({
+      userId: req.authenticatedUser.id,
+      provider: 'GITHUB',
+      providerAccountId: req.user.oauthProviderAccountId,
+    });
+
+    return res.redirect(`${env.CLIENT_URL}/settings?oauthLinked=github`);
   } catch (error) {
     return next(error);
   }

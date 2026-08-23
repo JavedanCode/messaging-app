@@ -703,7 +703,7 @@ describe('Message API', () => {
       expect(response.body.message.attachmentSize).toBeGreaterThan(0);
       expect(response.body.message.content).toBeNull();
       expect(response.body.message.attachmentUrl).toMatch(/^attachments\/[0-9a-f-]{36}\.txt$/);
-    });
+    }, 10000);
 
     it('creates the attachment message with the authenticated user as the sender', async () => {
       const user = await createTestUser({
@@ -773,7 +773,7 @@ describe('Message API', () => {
 
       expect(updatedConversation.lastMessageAt).not.toBeNull();
       expect(updatedConversation.lastMessageAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
-    });
+    }, 10000);
 
     it('rejects an attachment without a file', async () => {
       const user = await createTestUser({

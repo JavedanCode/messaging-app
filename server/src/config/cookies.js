@@ -34,3 +34,11 @@ export const oauthStateCookieOptions = {
   maxAge: 10 * 60 * 1000,
   path: '/auth',
 };
+
+export const oauthLinkStateCookieOptions = {
+  httpOnly: true,
+  secure: isProduction,
+  sameSite,
+  maxAge: 10 * 60 * 1000,
+  path: '/auth',
+};

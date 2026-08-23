@@ -122,3 +122,34 @@ export async function findOrCreateOAuthUser({
     return user;
   });
 }
+
+export async function linkOAuthAccount({ userId, provider, providerAccountId }) {
+  const existingAccount = await findAccountByProvider({
+    provider,
+    providerAccountId,
+  });
+
+  if (existingAccount) {
+    if (existingAccount.userId === userId) {
+      throw new AppError(
+        `Your ${provider.toLowerCase()} account is already connected.`,
+        409,
+        'OAUTH_ACCOUNT_ALREADY_LINKED',
+      );
+    }
+
+    throw new AppError(
+      'This OAuth account is already connected to another account.',
+      409,
+      'OAUTH_ACCOUNT_ALREADY_LINKED_TO_ANOTHER_USER',
+    );
+  }
+
+  return prisma.account.create({
+    data: {
+      userId,
+      provider,
+      providerAccountId,
+    },
+  });
+}

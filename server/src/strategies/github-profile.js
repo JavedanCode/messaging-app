@@ -16,11 +16,17 @@ export async function processGitHubProfile(profile, { findOrCreateOAuthUser, pro
   }
 
   // Normalize provider data into the application-specific OAuth user shape.
-  return findOrCreateOAuthUser({
+  const user = await findOrCreateOAuthUser({
     provider,
     providerAccountId: profile.id,
     email: emailData.value.toLowerCase(),
     displayName: profile.displayName || profile.username || null,
     avatarUrl: profile.photos?.[0]?.value || null,
   });
+
+  return {
+    ...user,
+    oauthProviderAccountId: profile.id,
+    oauthProvider: provider,
+  };
 }

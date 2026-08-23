@@ -17,6 +17,10 @@ import {
   startGoogleOAuth,
   startGitHubOAuth,
   githubCallback,
+  startGoogleOAuthLink,
+  googleLinkCallback,
+  startGitHubOAuthLink,
+  githubLinkCallback,
 } from '../controllers/oauth.controller.js';
 
 import { authenticateLocal } from '../middleware/passport.js';
@@ -91,6 +95,8 @@ router.post('/logout', logout);
 
 router.get('/google', startGoogleOAuth);
 
+router.get('/google/link', authenticate, startGoogleOAuthLink);
+
 // The authorization endpoint only starts the provider flow after confirming
 // that the browser has an OAuth state value to bind to the callback.
 router.get('/google/authorize', (req, res, next) => {
@@ -163,7 +169,59 @@ router.get(
   googleCallback,
 );
 
+router.get('/google/link/authorize', (req, res, next) => {
+  const state = req.cookies.oauthLinkState;
+
+  if (!state) {
+    return next(new AppError('OAuth linking failed.', 401, 'OAUTH_STATE_INVALID'));
+  }
+
+  return passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    state,
+    session: false,
+  })(req, res, next);
+});
+
+router.get(
+  '/google/link/callback',
+  authenticate,
+  (req, res, next) => {
+    const authenticatedUser = req.user;
+
+    passport.authenticate(
+      'google',
+      {
+        session: false,
+      },
+      (error, user, info) => {
+        if (error) {
+          return next(error);
+        }
+
+        if (!user) {
+          return next(
+            new AppError(
+              info?.message || 'OAuth linking failed.',
+              401,
+              info?.code || 'OAUTH_AUTHENTICATION_FAILED',
+            ),
+          );
+        }
+
+        req.authenticatedUser = authenticatedUser;
+        req.user = user;
+
+        return next();
+      },
+    )(req, res, next);
+  },
+  googleLinkCallback,
+);
+
 router.get('/github', startGitHubOAuth);
+
+router.get('/github/link', authenticate, startGitHubOAuthLink);
 
 // The authorization endpoint only starts the provider flow after confirming
 // that the browser has an OAuth state value to bind to the callback.
@@ -180,6 +238,42 @@ router.get('/github/authorize', (req, res, next) => {
     session: false,
   })(req, res, next);
 });
+
+router.get(
+  '/github/link/callback',
+  authenticate,
+  (req, res, next) => {
+    const authenticatedUser = req.user;
+
+    passport.authenticate(
+      'github',
+      {
+        session: false,
+      },
+      (error, user, info) => {
+        if (error) {
+          return next(error);
+        }
+
+        if (!user) {
+          return next(
+            new AppError(
+              info?.message || 'OAuth linking failed.',
+              401,
+              info?.code || 'OAUTH_AUTHENTICATION_FAILED',
+            ),
+          );
+        }
+
+        req.authenticatedUser = authenticatedUser;
+        req.user = user;
+
+        return next();
+      },
+    )(req, res, next);
+  },
+  githubLinkCallback,
+);
 
 // Passport verifies the provider response and populates req.user before the
 // callback controller creates the application's authentication session.
