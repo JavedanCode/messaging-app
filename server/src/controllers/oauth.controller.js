@@ -130,12 +130,10 @@ export async function googleLinkCallback(req, res, next) {
       throw new AppError('OAuth linking failed.', 401, 'OAUTH_AUTHENTICATION_FAILED');
     }
 
-    const providerData = extractGoogleProfile(req.user);
-
     await linkOAuthAccount({
       userId: req.authenticatedUser.id,
       provider: AuthProvider.GOOGLE,
-      providerAccountId: providerData.providerAccountId,
+      providerAccountId: req.user.providerAccountId,
     });
 
     return res.redirect(`${env.CLIENT_URL}/settings?oauthLinked=google`);
