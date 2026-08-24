@@ -20,6 +20,8 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "node src/db/seed.js",
+    "test:migrate": "dotenv -e .env.test -- prisma migrate deploy",
+    "test:generate": "dotenv -e .env.test -- prisma generate",
     "check": "npm run lint && npm run format:check && npm test"
   },
   "dependencies": {
@@ -49,6 +51,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^10.8.1",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.11.0",

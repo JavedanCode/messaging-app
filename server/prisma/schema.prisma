@@ -13,6 +13,13 @@ enum AuthProvider {
   GITHUB
 }
 
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  BLOCKED
+}
+
 enum VerificationTokenType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
@@ -59,6 +66,10 @@ model User {
   sentMessages            Message[]
 
   createdConversations Conversation[] @relation("ConversationCreator")
+
+  sentFriendRequests Friendship[] @relation("FriendRequestsSent")
+
+  receivedFriendRequests Friendship[] @relation("FriendRequestsReceived")
 
   @@index([createdAt])
 }
@@ -191,4 +202,25 @@ model Message {
   @@index([conversationId, createdAt])
   @@index([senderId])
   @@index([createdAt])
+}
+
+model Friendship {
+  id String @id @default(uuid())
+
+  requesterId String
+  receiverId  String
+
+  friendshipKey String @unique
+
+  status FriendshipStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  requester User @relation("FriendRequestsSent", fields: [requesterId], references: [id], onDelete: Cascade)
+
+  receiver User @relation("FriendRequestsReceived", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([requesterId, status])
+  @@index([receiverId, status])
 }
