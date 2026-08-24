@@ -94,6 +94,8 @@ export function ChatProvider({ children }) {
     onMessageUpdated,
     onMessageDeleted,
     onConversationUpdated,
+    onConversationCreated,
+    onConversationDeleted,
     onConversationMemberAdded,
     onConversationMemberRemoved,
     onConversationMemberRoleUpdated,
@@ -351,6 +353,32 @@ export function ChatProvider({ children }) {
 
     return unsubscribe;
   }, [activeConversation?.id, onConversationUpdated]);
+
+  useEffect(() => {
+    const unsubscribe = onConversationCreated(({ conversation }) => {
+      if (!conversation) return;
+
+      setConversations((current) => upsertConversation(current, conversation));
+    });
+
+    return unsubscribe;
+  }, [onConversationCreated]);
+
+  useEffect(() => {
+    const unsubscribe = onConversationDeleted(({ conversationId }) => {
+      setConversations((current) =>
+        current.filter((conversation) => conversation.id !== conversationId),
+      );
+
+      if (activeConversation?.id !== conversationId) return;
+
+      setActiveConversation(null);
+      setMessages([]);
+      setTypingUsers([]);
+    });
+
+    return unsubscribe;
+  }, [activeConversation?.id, onConversationDeleted]);
 
   useEffect(() => {
     const unsubscribeAdded = onConversationMemberAdded(
