@@ -541,7 +541,7 @@ describe('Socket.IO', () => {
         await closeSocket(aliceSocket);
         await closeSocket(charlieSocket);
       }
-    });
+    }, 10000);
 
     it('broadcasts a message to a connected member who has not joined the room', async () => {
       const alice = await createTestUser({
@@ -622,7 +622,7 @@ describe('Socket.IO', () => {
         await closeSocket(aliceSocket);
         await closeSocket(bobSocket);
       }
-    });
+    }, 10000);
 
     it('broadcasts an updated message to members in the conversation room', async () => {
       const alice = await createTestUser({

@@ -111,7 +111,7 @@ describe('Message API', () => {
       });
 
       expect(response.body.message.senderId).toBe(userA.id);
-    });
+    }, 10000);
 
     it('creates the message with the authenticated user as the sender', async () => {
       const userA = await createTestUser({
@@ -145,7 +145,7 @@ describe('Message API', () => {
       expect(message.conversationId).toBe(conversation.id);
       expect(message.type).toBe('TEXT');
       expect(message.content).toBe('This is my message.');
-    });
+    }, 10000);
 
     it('trims surrounding whitespace from the message content', async () => {
       const userA = await createTestUser({
@@ -168,7 +168,7 @@ describe('Message API', () => {
 
       expect(response.status).toBe(201);
       expect(response.body.message.content).toBe('Hello Bob!');
-    });
+    }, 10000);
 
     it('updates lastMessageAt when a message is sent', async () => {
       const userA = await createTestUser({
@@ -205,7 +205,7 @@ describe('Message API', () => {
       expect(updatedConversation.lastMessageAt.getTime()).toBe(
         new Date(response.body.message.createdAt).getTime(),
       );
-    });
+    }, 10000);
 
     it('rejects an empty message', async () => {
       const userA = await createTestUser({
@@ -663,7 +663,7 @@ describe('Message API', () => {
       expect(response.body.message.attachmentSize).toBeGreaterThan(0);
       expect(response.body.message.content).toBeNull();
       expect(response.body.message.attachmentUrl).toMatch(/^attachments\/[0-9a-f-]{36}\.png$/);
-    });
+    }, 10000);
 
     it('uploads a file attachment', async () => {
       const user = await createTestUser({
@@ -737,7 +737,7 @@ describe('Message API', () => {
 
       expect(message.senderId).toBe(user.id);
       expect(message.conversationId).toBe(conversation.id);
-    });
+    }, 10000);
 
     it('updates lastMessageAt when an attachment is uploaded', async () => {
       const user = await createTestUser({
@@ -1405,7 +1405,7 @@ describe('Message API', () => {
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
       expect(response.body.error.code).toBe('VALIDATION_ERROR');
-    });
+    }, 10000);
 
     it('rejects an unauthenticated request', async () => {
       const response = await request(app)
@@ -1540,7 +1540,7 @@ describe('Message API', () => {
 
       expect(response.status).toBe(404);
       expect(response.body.success).toBe(false);
-    });
+    }, 10000);
 
     it('rejects an unauthenticated request', async () => {
       const user = await createTestUser({

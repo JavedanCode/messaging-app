@@ -5,7 +5,7 @@ function createDirectKey(userIdA, userIdB) {
   return [userIdA, userIdB].sort().join(':');
 }
 
-const conversationInclude = {
+export const conversationInclude = {
   members: {
     include: {
       user: {
