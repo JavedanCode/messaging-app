@@ -159,6 +159,12 @@ export async function rejectFriendRequest(friendshipId, userId) {
     },
   });
 
+  await prisma.friendship.delete({
+    where: {
+      id: friendshipId,
+    },
+  });
+
   emitFriendRequestRejected(updatedFriendship);
 
   return updatedFriendship;
