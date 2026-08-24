@@ -13,11 +13,13 @@ import FriendsPanel from "../components/friends/FriendsPanel";
 import DetailsPanel from "../components/layout/DetailsPanel";
 import { useAuth } from "../context/AuthContext";
 import { useChat } from "../context/ChatContext";
+import { useFriendships } from "../context/useFriendships";
 
 function Chat() {
   const { activeConversation, conversationSearch, setConversationSearch } =
     useChat();
   const { user, logout } = useAuth();
+  const { incomingRequests } = useFriendships();
   const navigate = useNavigate();
 
   const [showNewConversation, setShowNewConversation] = useState(false);
@@ -44,12 +46,13 @@ function Chat() {
         onLogout={handleLogout}
         onNewConversation={() => setShowNewConversation(true)}
         onFriends={() => setShowFriends(true)}
+        pendingFriendRequests={incomingRequests.length}
         conversationSearch={conversationSearch}
         onConversationSearchChange={setConversationSearch}
         sidebar={<ConversationList />}
         main={
-          <div className="flex h-full">
-            <div className="min-w-0 flex-1">
+          <div className="flex h-full flex-col xl:flex-row">
+            <div className="min-h-0 min-w-0 flex-1">
               {activeConversation ? (
                 <div className="flex h-full flex-col">
                   <ChatHeader conversation={activeConversation} />
