@@ -36,6 +36,7 @@ jobs:
       NODE_ENV: test
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/express_auth_api_test
       CLIENT_URL: http://localhost:5173
+      CLIENT_ORIGIN: http://localhost:5173
       JWT_ACCESS_SECRET: ci-test-access-secret-123456789012345678901234
       JWT_REFRESH_SECRET: ci-test-refresh-secret-123456789012345678901234
       JWT_ACCESS_EXPIRES_IN: 15m
