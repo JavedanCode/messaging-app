@@ -45,6 +45,18 @@ export function emitConversationCreated(conversation, recipientUserIds = []) {
   });
 }
 
+export function emitConversationDeleted(conversationId, recipientUserIds = []) {
+  const io = getSocketServer();
+
+  if (!io || !conversationId || !recipientUserIds.length) {
+    return;
+  }
+
+  io.to(getUserRooms(recipientUserIds)).emit('conversation:deleted', {
+    conversationId,
+  });
+}
+
 export function emitConversationMemberAdded(conversationId, member, recipientUserIds = []) {
   const io = getSocketServer();
 
