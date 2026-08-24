@@ -156,6 +156,18 @@ describe('Friendship system', () => {
       expect(response.status).toBe(200);
 
       expect(response.body.friendship.status).toBe('REJECTED');
+
+      const storedFriendship = await prisma.friendship.findUnique({
+        where: {
+          id: friendshipId,
+        },
+      });
+
+      expect(storedFriendship).toBeNull();
+
+      const retryResponse = await agentA.post(`/friends/request/${userB.id}`);
+
+      expect(retryResponse.status).toBe(201);
     });
 
     it('prevents the requester from rejecting their own request', async () => {
