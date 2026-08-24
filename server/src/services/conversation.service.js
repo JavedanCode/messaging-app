@@ -271,9 +271,20 @@ export async function deleteConversation(conversationId, userId) {
     throw new AppError('Only a conversation administrator can delete this conversation.', 403);
   }
 
+  const members = await prisma.conversationMember.findMany({
+    where: {
+      conversationId,
+    },
+    select: {
+      userId: true,
+    },
+  });
+
   await prisma.conversation.delete({
     where: {
       id: conversationId,
     },
   });
+
+  return members.map((entry) => entry.userId);
 }
