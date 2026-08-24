@@ -128,6 +128,12 @@ export function SocketProvider({ children }) {
     onConversationUpdated: (callback) =>
       subscribe("conversation:updated", callback),
 
+    onConversationCreated: (callback) =>
+      subscribe("conversation:created", callback),
+
+    onConversationDeleted: (callback) =>
+      subscribe("conversation:deleted", callback),
+
     onConversationMemberAdded: (callback) =>
       subscribe("conversation:member:added", callback),
 
