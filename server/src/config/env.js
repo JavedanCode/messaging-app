@@ -16,6 +16,8 @@ const envSchema = z.object({
 
   CLIENT_URL: z.url(),
 
+  CLIENT_ORIGIN: z.url(),
+
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_REFRESH_SECRET: z.string().min(32),
 

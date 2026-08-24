@@ -28,7 +28,7 @@ app.use(helmet());
 // Credentials are required because authentication tokens are stored in cookies.
 app.use(
   cors({
-    origin: env.CLIENT_URL,
+    origin: env.CLIENT_ORIGIN,
     credentials: true,
   }),
 );

@@ -9,7 +9,7 @@ import { setSocketServer } from './io.js';
 export function createSocketServer(server) {
   const io = new Server(server, {
     cors: {
-      origin: env.CLIENT_URL,
+      origin: env.CLIENT_ORIGIN,
       credentials: true,
     },
   });
