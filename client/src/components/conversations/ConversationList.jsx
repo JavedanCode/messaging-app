@@ -1,7 +1,9 @@
 import { MessageCircle } from "lucide-react";
 
 import { useAuth } from "../../context/AuthContext";
+import Avatar from "../users/Avatar";
 import { useChat } from "../../context/ChatContext";
+import { useFriendships } from "../../context/useFriendships";
 
 function ConversationList() {
   const {
@@ -13,6 +15,7 @@ function ConversationList() {
   } = useChat();
 
   const { user } = useAuth();
+  const { friends } = useFriendships();
 
   if (loadingConversations) {
     return (
@@ -78,10 +81,6 @@ function ConversationList() {
           ? conversation.name || "Unnamed group"
           : getDirectConversationName(conversation, user?.id);
 
-        const avatar = isGroup
-          ? null
-          : getDirectConversationAvatar(conversation, user?.id);
-
         const unreadCount = conversation.unreadCount || 0;
 
         const lastMessage = conversation.lastMessage;
@@ -95,11 +94,18 @@ function ConversationList() {
               isActive ? "bg-indigo-500/12" : "hover:bg-white/4"
             }`}
           >
-            {avatar ? (
-              <img
-                src={avatar}
-                alt=""
-                className="h-11 w-11 shrink-0 rounded-full object-cover"
+            {!isGroup ? (
+              <Avatar
+                user={{
+                  ...getDirectConversationMember(conversation, user?.id)?.user,
+                  online: friends.find(
+                    (friend) =>
+                      friend.id ===
+                      getDirectConversationMember(conversation, user?.id)?.user
+                        ?.id,
+                  )?.online,
+                }}
+                className="h-11 w-11"
               />
             ) : (
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-500/10 text-sm font-semibold text-indigo-400">
@@ -169,12 +175,6 @@ function getDirectConversationName(conversation, currentUserId) {
   const member = getDirectConversationMember(conversation, currentUserId);
 
   return member?.user?.displayName || member?.user?.username || "Unknown user";
-}
-
-function getDirectConversationAvatar(conversation, currentUserId) {
-  const member = getDirectConversationMember(conversation, currentUserId);
-
-  return member?.user?.avatarUrl || null;
 }
 
 function getConversationInitial(conversation, currentUserId) {
