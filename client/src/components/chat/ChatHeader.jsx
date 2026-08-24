@@ -3,12 +3,15 @@ import { MoreHorizontal, Trash2, Users } from "lucide-react";
 
 import { useAuth } from "../../context/AuthContext";
 import { useChat } from "../../context/ChatContext";
+import { useFriendships } from "../../context/useFriendships";
 
 import UserProfileModal from "../users/UserProfileModal";
+import Avatar from "../users/Avatar";
 
 function ChatHeader({ conversation }) {
   const { user } = useAuth();
   const { removeConversation } = useChat();
+  const { friends } = useFriendships();
 
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
@@ -28,8 +31,6 @@ function ChatHeader({ conversation }) {
     : otherMember?.user.displayName ||
       otherMember?.user.username ||
       "Unknown user";
-
-  const avatarUrl = !isGroup ? otherMember?.user.avatarUrl : null;
 
   const memberCount = conversation.members.length;
 
@@ -105,11 +106,15 @@ function ChatHeader({ conversation }) {
               : "cursor-default"
           }`}
         >
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt=""
-              className="h-10 w-10 rounded-full object-cover"
+          {!isGroup ? (
+            <Avatar
+              user={{
+                ...otherMember?.user,
+                online: friends.find(
+                  (friend) => friend.id === otherMember?.user?.id,
+                )?.online,
+              }}
+              className="h-10 w-10"
             />
           ) : (
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-500/10 text-sm font-semibold text-indigo-400">
