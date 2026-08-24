@@ -4,9 +4,17 @@ import {
   getConversationById,
   getUserConversations,
 } from '../services/conversation.service.js';
+import { emitConversationCreated } from '../sockets/conversation.socket.js';
 
 export async function createConversationController(req, res) {
   const conversation = await createConversation(req.user.id, req.body);
+
+  emitConversationCreated(
+    conversation,
+    conversation.members
+      .map((member) => member.userId)
+      .filter((memberId) => memberId !== req.user.id),
+  );
 
   res.status(201).json({
     success: true,
