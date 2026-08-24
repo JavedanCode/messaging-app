@@ -28,6 +28,7 @@ export function FriendshipProvider({ children }) {
   const [incomingRequests, setIncomingRequests] = useState([]);
   const [outgoingRequests, setOutgoingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (authLoading || !isAuthenticated) return;
@@ -36,9 +37,13 @@ export function FriendshipProvider({ children }) {
     Promise.all([getFriends(), getIncomingRequests(), getOutgoingRequests()])
       .then(([friendsResponse, incomingResponse, outgoingResponse]) => {
         if (cancelled) return;
+        setError("");
         setFriends(friendsResponse.friends);
         setIncomingRequests(incomingResponse.requests);
         setOutgoingRequests(outgoingResponse.requests);
+      })
+      .catch((requestError) => {
+        if (!cancelled) setError(requestError.message);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -157,6 +162,7 @@ export function FriendshipProvider({ children }) {
         incomingRequests,
         outgoingRequests,
         loading,
+        error,
         sendRequest,
         acceptRequest,
         rejectRequest,
