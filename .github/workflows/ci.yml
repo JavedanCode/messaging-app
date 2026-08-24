@@ -9,8 +9,8 @@ on:
       - main
 
 jobs:
-  test:
-    name: Lint, format, and test
+  backend:
+    name: Backend lint, format, and test
     runs-on: ubuntu-latest
 
     services:
