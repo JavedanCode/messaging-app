@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JavedanChat</title>
+
+    <script>
+      (function () {
+        const basePath = "/messaging-app";
+        const location = window.location;
+
+        const path = location.pathname.startsWith(basePath)
+          ? location.pathname.slice(basePath.length)
+          : location.pathname;
+
+        const redirectUrl =
+          basePath +
+          "/?redirect=" +
+          encodeURIComponent(path + location.search + location.hash);
+
+        location.replace(redirectUrl);
+      })();
+    </script>
+  </head>
+
+  <body>
+    <p>Redirecting...</p>
+  </body>
+</html>

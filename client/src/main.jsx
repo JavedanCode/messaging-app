@@ -9,6 +9,16 @@ import { FriendshipProvider } from "./context/FriendshipContext.jsx";
 import { SocketProvider } from "./context/SocketContext.jsx";
 import "./index.css";
 
+const redirect = new URLSearchParams(window.location.search).get("redirect");
+
+if (redirect) {
+  window.history.replaceState(
+    null,
+    "",
+    `/messaging-app${decodeURIComponent(redirect)}`,
+  );
+}
+
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <BrowserRouter basename="/messaging-app">
