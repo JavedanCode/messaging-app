@@ -3,10 +3,13 @@ import { Check, Crown, LogOut, Pencil, UserMinus } from "lucide-react";
 
 import { useAuth } from "../../context/AuthContext";
 import { useChat } from "../../context/ChatContext";
+import { useFriendships } from "../../context/useFriendships";
 import { searchUsers } from "../../api/users";
+import Avatar from "../users/Avatar";
 
 function DetailsPanel() {
   const { user } = useAuth();
+  const { friends } = useFriendships();
   const {
     activeConversation,
     renameGroup,
@@ -22,7 +25,7 @@ function DetailsPanel() {
 
   if (!activeConversation)
     return (
-      <aside className="hidden w-[300px] shrink-0 border-l border-white/6 bg-[#15181e] xl:flex xl:flex-col">
+      <aside className="flex max-h-[38vh] w-full shrink-0 flex-col border-t border-white/6 bg-[#15181e] xl:max-h-none xl:w-[300px] xl:border-l xl:border-t-0">
         <div className="border-b border-white/6 px-5 py-4">
           <h2 className="text-sm font-semibold">Details</h2>
         </div>
@@ -65,16 +68,19 @@ function DetailsPanel() {
       (member) => member.user.id !== user.id,
     )?.user;
     return (
-      <aside className="hidden w-[300px] shrink-0 border-l border-white/6 bg-[#15181e] xl:flex xl:flex-col">
+      <aside className="flex max-h-[38vh] w-full shrink-0 flex-col border-t border-white/6 bg-[#15181e] xl:max-h-none xl:w-[300px] xl:border-l xl:border-t-0">
         <div className="border-b border-white/6 px-5 py-4">
           <h2 className="text-sm font-semibold">Contact</h2>
         </div>
         <div className="p-5 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-indigo-500/10 text-xl text-indigo-400">
-            {(other?.displayName || other?.username || "?")
-              .charAt(0)
-              .toUpperCase()}
-          </div>
+          <Avatar
+            user={{
+              ...other,
+              online: friends.find((friend) => friend.id === other?.id)?.online,
+            }}
+            className="mx-auto h-16 w-16"
+            textClassName="text-xl"
+          />
           <p className="mt-3 text-sm text-white/80">
             {other?.displayName || other?.username}
           </p>
@@ -85,7 +91,7 @@ function DetailsPanel() {
   }
 
   return (
-    <aside className="hidden w-[300px] shrink-0 border-l border-white/6 bg-[#15181e] xl:flex xl:flex-col">
+    <aside className="flex max-h-[38vh] w-full shrink-0 flex-col border-t border-white/6 bg-[#15181e] xl:max-h-none xl:w-[300px] xl:border-l xl:border-t-0">
       <div className="border-b border-white/6 px-5 py-4">
         <h2 className="text-sm font-semibold">Group details</h2>
         <p className="mt-1 text-xs text-white/30">
@@ -157,11 +163,11 @@ function DetailsPanel() {
                 key={memberId}
                 className="flex items-center gap-2 rounded-lg p-2"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-500/10 text-xs text-indigo-400">
-                  {(memberUser?.displayName || memberUser?.username || "?")
-                    .charAt(0)
-                    .toUpperCase()}
-                </div>
+                <Avatar
+                  user={memberUser}
+                  className="h-8 w-8"
+                  textClassName="text-xs"
+                />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs text-white/75">
                     {memberUser?.displayName ||
