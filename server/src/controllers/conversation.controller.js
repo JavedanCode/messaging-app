@@ -4,7 +4,10 @@ import {
   getConversationById,
   getUserConversations,
 } from '../services/conversation.service.js';
-import { emitConversationCreated } from '../sockets/conversation.socket.js';
+import {
+  emitConversationCreated,
+  emitConversationDeleted,
+} from '../sockets/conversation.socket.js';
 
 export async function createConversationController(req, res) {
   const conversation = await createConversation(req.user.id, req.body);
@@ -41,7 +44,9 @@ export async function getConversationController(req, res) {
 }
 
 export async function deleteConversationController(req, res) {
-  await deleteConversation(req.params.conversationId, req.user.id);
+  const memberIds = await deleteConversation(req.params.conversationId, req.user.id);
+
+  emitConversationDeleted(req.params.conversationId, memberIds);
 
   res.status(204).send();
 }
