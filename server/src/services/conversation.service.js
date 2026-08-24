@@ -112,7 +112,7 @@ export async function createDirectConversation(userId, otherUserId) {
     return existingConversation;
   }
 
-  return prisma.conversation.create({
+  const conversation = await prisma.conversation.create({
     data: {
       type: 'DIRECT',
       directKey,
@@ -132,6 +132,8 @@ export async function createDirectConversation(userId, otherUserId) {
     },
     include: conversationInclude,
   });
+
+  return conversation;
 }
 
 export async function createGroupConversation(userId, name, userIds) {
@@ -139,7 +141,7 @@ export async function createGroupConversation(userId, name, userIds) {
 
   await ensureUsersExist(memberIds);
 
-  return prisma.conversation.create({
+  const conversation = await prisma.conversation.create({
     data: {
       type: 'GROUP',
       name,
@@ -153,6 +155,8 @@ export async function createGroupConversation(userId, name, userIds) {
     },
     include: conversationInclude,
   });
+
+  return conversation;
 }
 
 export async function createConversation(userId, data) {
