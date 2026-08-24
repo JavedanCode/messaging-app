@@ -32,6 +32,19 @@ export function emitConversationUpdated(conversation, recipientUserIds = []) {
   });
 }
 
+export function emitConversationCreated(conversation, recipientUserIds = []) {
+  const io = getSocketServer();
+
+  if (!io || !conversation || !recipientUserIds.length) {
+    return;
+  }
+
+  io.to(getUserRooms(recipientUserIds)).emit('conversation:created', {
+    conversationId: conversation.id,
+    conversation,
+  });
+}
+
 export function emitConversationMemberAdded(conversationId, member, recipientUserIds = []) {
   const io = getSocketServer();
 
