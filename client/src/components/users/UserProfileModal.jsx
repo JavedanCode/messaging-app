@@ -1,6 +1,7 @@
 import { MessageCircle, X } from "lucide-react";
 
 import { useChat } from "../../context/ChatContext";
+import Avatar from "./Avatar";
 
 function UserProfileModal({ user, onClose }) {
   const { conversations, startDirectConversation, selectConversation } =
@@ -58,10 +59,10 @@ function UserProfileModal({ user, onClose }) {
 
         <div className="px-6 pb-6 text-center">
           {user.avatarUrl ? (
-            <img
-              src={user.avatarUrl}
-              alt=""
-              className="mx-auto h-24 w-24 rounded-full object-cover ring-4 ring-white/5"
+            <Avatar
+              user={user}
+              className="mx-auto h-24 w-24"
+              textClassName="text-3xl ring-4 ring-white/5"
             />
           ) : (
             <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-indigo-500/10 text-3xl font-semibold text-indigo-400 ring-4 ring-white/5">
