@@ -167,13 +167,6 @@ function Login() {
         >
           Continue with GitHub
         </button>
-
-        <button
-          type="button"
-          className="flex h-11 w-full items-center justify-center rounded-xl border border-indigo-400/20 bg-indigo-400/5 text-sm font-medium text-indigo-300 transition hover:bg-indigo-400/10"
-        >
-          Try the demo
-        </button>
       </div>
     </AuthLayout>
   );
