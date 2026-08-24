@@ -13,6 +13,7 @@ import userRouter from './routes/user.routes.js';
 import conversationRoutes from './routes/conversation.routes.js';
 import messageRoutes from './routes/message.routes.js';
 import conversationMemberRoutes from './routes/conversation-member.routes.js';
+import friendshipRoutes from './routes/friendship.routes.js';
 
 import { errorHandler } from './middleware/error-handler.js';
 
@@ -46,6 +47,7 @@ app.use('/users', userRouter);
 app.use('/conversations', conversationRoutes);
 app.use('/conversations', conversationMemberRoutes);
 app.use('/conversations', messageRoutes);
+app.use('/friends', friendshipRoutes);
 
 app.get('/health', (req, res) => {
   res.status(200).json({
