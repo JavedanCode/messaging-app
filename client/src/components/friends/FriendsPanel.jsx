@@ -3,22 +3,13 @@ import { Check, UserPlus, Users, X } from "lucide-react";
 
 import { useFriendships } from "../../context/useFriendships";
 import { searchUsers } from "../../api/users";
+import Avatar from "../users/Avatar";
 
 function Person({ user, action, label, onClick, secondaryAction }) {
   const name = user.displayName || user.username;
   return (
     <div className="flex items-center gap-3 rounded-xl p-3 hover:bg-white/4">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-500/10 text-sm font-semibold text-indigo-400">
-        {user.avatarUrl ? (
-          <img
-            src={user.avatarUrl}
-            alt=""
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          name.charAt(0).toUpperCase()
-        )}
-      </div>
+      <Avatar user={user} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm text-white/85">{name}</p>
         <p className="truncate text-xs text-white/30">@{user.username}</p>
@@ -59,6 +50,7 @@ function FriendsPanel({ onClose }) {
     rejectRequest,
     remove,
     sendRequest,
+    error: friendshipError,
   } = useFriendships();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -116,7 +108,11 @@ function FriendsPanel({ onClose }) {
               className="h-10 min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/25"
             />
           </div>
-          {error && <p className="mb-3 text-xs text-red-400">{error}</p>}
+          {(error || friendshipError) && (
+            <p className="mb-3 text-xs text-red-400">
+              {error || friendshipError}
+            </p>
+          )}
           {query &&
             results.map((result) => (
               <Person
