@@ -18,6 +18,7 @@ function AppShell({
   main,
   onNewConversation,
   onFriends,
+  pendingFriendRequests = 0,
   onLogout,
   onAccount,
   conversationSearch,
@@ -50,7 +51,7 @@ function AppShell({
               <button
                 type="button"
                 onClick={onNewConversation}
-                className="rounded-lg p-2 text-white/40 transition hover:bg-white/5 hover:text-white"
+                className="relative rounded-lg p-2 text-white/40 transition hover:bg-white/5 hover:text-white"
                 aria-label="New conversation"
                 title="New conversation"
               >
@@ -60,11 +61,16 @@ function AppShell({
               <button
                 type="button"
                 onClick={onFriends}
-                className="rounded-lg p-2 text-white/40 transition hover:bg-white/5 hover:text-white"
+                className="relative rounded-lg p-2 text-white/40 transition hover:bg-white/5 hover:text-white"
                 aria-label="Friends"
                 title="Friends"
               >
                 <Users size={18} />
+                {pendingFriendRequests > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-semibold text-white">
+                    {pendingFriendRequests > 9 ? "9+" : pendingFriendRequests}
+                  </span>
+                )}
               </button>
 
               <button
