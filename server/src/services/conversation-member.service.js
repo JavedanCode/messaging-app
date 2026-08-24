@@ -1,7 +1,26 @@
 import { prisma } from '../db/prisma.js';
 import { AppError } from '../errors/AppError.js';
+import {
+  emitConversationMemberAdded,
+  emitConversationMemberRemoved,
+  emitConversationMemberRoleUpdated,
+  emitConversationUpdated,
+} from '../sockets/conversation.socket.js';
 
 import { requireConversationMember, conversationInclude } from './conversation.service.js';
+
+async function getConversationMemberIds(conversationId) {
+  const members = await prisma.conversationMember.findMany({
+    where: {
+      conversationId,
+    },
+    select: {
+      userId: true,
+    },
+  });
+
+  return members.map((member) => member.userId);
+}
 
 export async function getConversationType(conversationId) {
   const conversation = await prisma.conversation.findUnique({
@@ -66,7 +85,7 @@ export async function addGroupMember({ conversationId, requesterId, userId }) {
     throw new AppError('User is already a member of this conversation.', 409);
   }
 
-  return prisma.conversationMember.create({
+  const member = await prisma.conversationMember.create({
     data: {
       conversationId,
       userId,
@@ -83,6 +102,12 @@ export async function addGroupMember({ conversationId, requesterId, userId }) {
       },
     },
   });
+
+  const recipientUserIds = await getConversationMemberIds(conversationId);
+
+  emitConversationMemberAdded(conversationId, member, recipientUserIds);
+
+  return member;
 }
 
 export async function removeGroupMember({ conversationId, requesterId, userId }) {
@@ -116,6 +141,10 @@ export async function removeGroupMember({ conversationId, requesterId, userId })
       id: member.id,
     },
   });
+
+  const recipientUserIds = await getConversationMemberIds(conversationId);
+
+  emitConversationMemberRemoved(conversationId, userId, recipientUserIds);
 }
 
 export async function leaveGroup({ conversationId, userId }) {
@@ -203,6 +232,32 @@ export async function leaveGroup({ conversationId, userId }) {
       }
     }
   });
+
+  const remainingMembers = await prisma.conversationMember.findMany({
+    where: {
+      conversationId,
+    },
+    select: {
+      userId: true,
+    },
+  });
+
+  const updatedConversation = await prisma.conversation.findUnique({
+    where: {
+      id: conversationId,
+    },
+    include: conversationInclude,
+  });
+
+  emitConversationUpdated(
+    updatedConversation,
+    remainingMembers.map((entry) => entry.userId),
+  );
+  emitConversationMemberRemoved(
+    conversationId,
+    userId,
+    remainingMembers.map((entry) => entry.userId),
+  );
 }
 
 export async function updateMemberRole({ conversationId, requesterId, userId, role }) {
@@ -227,7 +282,7 @@ export async function updateMemberRole({ conversationId, requesterId, userId, ro
     throw new AppError('User is not a member.', 404);
   }
 
-  return prisma.conversationMember.update({
+  const updatedMember = await prisma.conversationMember.update({
     where: {
       id: member.id,
     },
@@ -235,6 +290,12 @@ export async function updateMemberRole({ conversationId, requesterId, userId, ro
       role,
     },
   });
+
+  const recipientUserIds = await getConversationMemberIds(conversationId);
+
+  emitConversationMemberRoleUpdated(conversationId, updatedMember, recipientUserIds);
+
+  return updatedMember;
 }
 
 export async function updateGroupName({ conversationId, requesterId, name }) {
@@ -246,7 +307,7 @@ export async function updateGroupName({ conversationId, requesterId, name }) {
 
   await requireAdmin(conversationId, requesterId);
 
-  return prisma.conversation.update({
+  const updatedConversation = await prisma.conversation.update({
     where: {
       id: conversationId,
     },
@@ -255,4 +316,10 @@ export async function updateGroupName({ conversationId, requesterId, name }) {
     },
     include: conversationInclude,
   });
+
+  const recipientUserIds = await getConversationMemberIds(conversationId);
+
+  emitConversationUpdated(updatedConversation, recipientUserIds);
+
+  return updatedConversation;
 }

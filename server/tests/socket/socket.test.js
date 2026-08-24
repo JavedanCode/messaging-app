@@ -872,6 +872,180 @@ describe('Socket.IO', () => {
   });
 
   describe('typing indicators', () => {
+    it('broadcasts member-added events for group conversations', async () => {
+      const alice = await createTestUser({
+        username: 'groupadmin',
+        email: 'groupadmin@example.com',
+      });
+
+      const bob = await createTestUser({
+        username: 'groupmember',
+        email: 'groupmember@example.com',
+      });
+
+      const charlie = await createTestUser({
+        username: 'groupnewmember',
+        email: 'groupnewmember@example.com',
+      });
+
+      const createConversationResponse = await fetch(
+        `http://localhost:${server.address().port}/conversations`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Cookie: createAuthCookie(alice.id),
+          },
+          body: JSON.stringify({
+            type: 'GROUP',
+            name: 'Design Team',
+            userIds: [bob.id],
+          }),
+        },
+      );
+
+      expect(createConversationResponse.status).toBe(201);
+
+      const { conversation } = await createConversationResponse.json();
+
+      const aliceSocket = connectSocket(createAuthCookie(alice.id));
+      const bobSocket = connectSocket(createAuthCookie(bob.id));
+
+      try {
+        await Promise.all([waitForConnect(aliceSocket), waitForConnect(bobSocket)]);
+
+        await Promise.all([
+          new Promise((resolve) => {
+            aliceSocket.emit('conversation:join', conversation.id, resolve);
+          }),
+          new Promise((resolve) => {
+            bobSocket.emit('conversation:join', conversation.id, resolve);
+          }),
+        ]);
+
+        const aliceEvent = waitForEvent(aliceSocket, 'conversation:member:added');
+        const bobEvent = waitForEvent(bobSocket, 'conversation:member:added');
+
+        const response = await fetch(
+          `http://localhost:${server.address().port}/conversations/${conversation.id}/members`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Cookie: createAuthCookie(alice.id),
+            },
+            body: JSON.stringify({
+              userId: charlie.id,
+            }),
+          },
+        );
+
+        expect(response.status).toBe(201);
+
+        const [aliceMessage, bobMessage] = await Promise.all([aliceEvent, bobEvent]);
+
+        expect(aliceMessage).toMatchObject({
+          conversationId: conversation.id,
+          member: {
+            userId: charlie.id,
+            role: 'MEMBER',
+            user: {
+              id: charlie.id,
+              username: 'groupnewmember',
+            },
+          },
+        });
+
+        expect(bobMessage).toEqual(aliceMessage);
+      } finally {
+        await closeSocket(aliceSocket);
+        await closeSocket(bobSocket);
+      }
+    }, 15000);
+
+    it('broadcasts group name changes to conversation members', async () => {
+      const alice = await createTestUser({
+        username: 'groupnameadmin',
+        email: 'groupnameadmin@example.com',
+      });
+
+      const bob = await createTestUser({
+        username: 'groupnamebob',
+        email: 'groupnamebob@example.com',
+      });
+
+      const createConversationResponse = await fetch(
+        `http://localhost:${server.address().port}/conversations`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Cookie: createAuthCookie(alice.id),
+          },
+          body: JSON.stringify({
+            type: 'GROUP',
+            name: 'Original Group',
+            userIds: [bob.id],
+          }),
+        },
+      );
+
+      expect(createConversationResponse.status).toBe(201);
+
+      const { conversation } = await createConversationResponse.json();
+
+      const aliceSocket = connectSocket(createAuthCookie(alice.id));
+      const bobSocket = connectSocket(createAuthCookie(bob.id));
+
+      try {
+        await Promise.all([waitForConnect(aliceSocket), waitForConnect(bobSocket)]);
+
+        await Promise.all([
+          new Promise((resolve) => {
+            aliceSocket.emit('conversation:join', conversation.id, resolve);
+          }),
+          new Promise((resolve) => {
+            bobSocket.emit('conversation:join', conversation.id, resolve);
+          }),
+        ]);
+
+        const aliceEvent = waitForEvent(aliceSocket, 'conversation:updated');
+        const bobEvent = waitForEvent(bobSocket, 'conversation:updated');
+
+        const response = await fetch(
+          `http://localhost:${server.address().port}/conversations/${conversation.id}`,
+          {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              Cookie: createAuthCookie(alice.id),
+            },
+            body: JSON.stringify({
+              name: 'Renamed Group',
+            }),
+          },
+        );
+
+        expect(response.status).toBe(200);
+
+        const [aliceMessage, bobMessage] = await Promise.all([aliceEvent, bobEvent]);
+
+        expect(aliceMessage).toMatchObject({
+          conversationId: conversation.id,
+          conversation: {
+            id: conversation.id,
+            name: 'Renamed Group',
+            type: 'GROUP',
+          },
+        });
+
+        expect(bobMessage).toEqual(aliceMessage);
+      } finally {
+        await closeSocket(aliceSocket);
+        await closeSocket(bobSocket);
+      }
+    }, 15000);
+
     it('broadcasts typing:start to other members in the conversation room', async () => {
       const alice = await createTestUser({
         username: 'typingalice',

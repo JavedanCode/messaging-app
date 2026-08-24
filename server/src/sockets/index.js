@@ -3,6 +3,7 @@ import { Server } from 'socket.io';
 import { env } from '../config/env.js';
 import { authenticateSocket } from './middleware.js';
 import { registerConversationSocket } from './conversation.socket.js';
+import { registerPresenceSocket } from './presence.socket.js';
 import { setSocketServer } from './io.js';
 
 export function createSocketServer(server) {
@@ -17,18 +18,16 @@ export function createSocketServer(server) {
 
   io.use(authenticateSocket);
 
-  io.on('connection', async (socket) => {
+  io.on('connection', (socket) => {
     const userRoom = `user:${socket.user.id}`;
 
-    await socket.join(userRoom);
+    socket.join(userRoom);
 
-    console.log(`Socket connected: ${socket.user.username}`);
+    registerPresenceSocket(socket);
 
     registerConversationSocket(socket);
 
-    socket.on('disconnect', () => {
-      console.log(`Socket disconnected: ${socket.user.username}`);
-    });
+    console.log(`Socket connected: ${socket.user.username}`);
   });
 
   return io;

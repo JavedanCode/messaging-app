@@ -1,7 +1,83 @@
+import { getSocketServer } from './io.js';
+
 import { requireConversationMember } from '../services/conversation.service.js';
+
+function getUserRoom(userId) {
+  return `user:${userId}`;
+}
+
+function getUserRooms(userIds) {
+  return userIds.map(getUserRoom);
+}
 
 function getConversationRoom(conversationId) {
   return `conversation:${conversationId}`;
+}
+
+export function emitConversationUpdated(conversation, recipientUserIds = []) {
+  const io = getSocketServer();
+
+  if (!io || !conversation) {
+    return;
+  }
+
+  io.to(getUserRooms(recipientUserIds)).emit('conversation:updated', {
+    conversationId: conversation.id,
+    conversation,
+  });
+
+  io.to(getConversationRoom(conversation.id)).emit('conversation:updated', {
+    conversationId: conversation.id,
+    conversation,
+  });
+}
+
+export function emitConversationMemberAdded(conversationId, member, recipientUserIds = []) {
+  const io = getSocketServer();
+
+  if (!io || !member) {
+    return;
+  }
+
+  const payload = {
+    conversationId,
+    member,
+  };
+
+  io.to(getUserRooms(recipientUserIds)).emit('conversation:member:added', payload);
+  io.to(getConversationRoom(conversationId)).emit('conversation:member:added', payload);
+}
+
+export function emitConversationMemberRemoved(conversationId, userId, recipientUserIds = []) {
+  const io = getSocketServer();
+
+  if (!io) {
+    return;
+  }
+
+  const payload = {
+    conversationId,
+    userId,
+  };
+
+  io.to(getUserRooms(recipientUserIds)).emit('conversation:member:removed', payload);
+  io.to(getConversationRoom(conversationId)).emit('conversation:member:removed', payload);
+}
+
+export function emitConversationMemberRoleUpdated(conversationId, member, recipientUserIds = []) {
+  const io = getSocketServer();
+
+  if (!io || !member) {
+    return;
+  }
+
+  const payload = {
+    conversationId,
+    member,
+  };
+
+  io.to(getUserRooms(recipientUserIds)).emit('conversation:member:role:updated', payload);
+  io.to(getConversationRoom(conversationId)).emit('conversation:member:role:updated', payload);
 }
 
 export function registerConversationSocket(socket) {

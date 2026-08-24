@@ -8,6 +8,8 @@ import {
   getOutgoingRequests,
 } from '../services/friendship.service.js';
 
+import { addOnlineStatus } from '../services/presence.service.js';
+
 export async function sendFriendRequestController(req, res) {
   const friendship = await sendFriendRequest(req.user.id, req.params.userId);
 
@@ -44,9 +46,11 @@ export async function removeFriendController(req, res) {
 export async function getFriendsController(req, res) {
   const friends = await getFriends(req.user.id);
 
+  const friendsWithStatus = addOnlineStatus(friends);
+
   res.status(200).json({
     success: true,
-    friends,
+    friends: friendsWithStatus,
   });
 }
 

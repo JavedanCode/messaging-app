@@ -1,5 +1,11 @@
 import { prisma } from '../db/prisma.js';
 import { AppError } from '../errors/AppError.js';
+import {
+  emitFriendRequestAccepted,
+  emitFriendRequestCreated,
+  emitFriendRequestRejected,
+  emitFriendRemoved,
+} from '../sockets/friendship.socket.js';
 
 function createFriendshipKey(userIdA, userIdB) {
   return [userIdA, userIdB].sort().join(':');
@@ -54,7 +60,7 @@ export async function sendFriendRequest(requesterId, receiverId) {
     throw new AppError('A friendship relationship already exists.', 409, 'FRIENDSHIP_EXISTS');
   }
 
-  return prisma.friendship.create({
+  const friendship = await prisma.friendship.create({
     data: {
       requesterId,
       receiverId,
@@ -70,6 +76,10 @@ export async function sendFriendRequest(requesterId, receiverId) {
       },
     },
   });
+
+  emitFriendRequestCreated(friendship);
+
+  return friendship;
 }
 
 export async function acceptFriendRequest(friendshipId, userId) {
@@ -91,14 +101,26 @@ export async function acceptFriendRequest(friendshipId, userId) {
     throw new AppError('Only pending requests can be accepted.', 400);
   }
 
-  return prisma.friendship.update({
+  const updatedFriendship = await prisma.friendship.update({
     where: {
       id: friendshipId,
     },
     data: {
       status: 'ACCEPTED',
     },
+    include: {
+      requester: {
+        select: userSelect,
+      },
+      receiver: {
+        select: userSelect,
+      },
+    },
   });
+
+  emitFriendRequestAccepted(updatedFriendship);
+
+  return updatedFriendship;
 }
 
 export async function rejectFriendRequest(friendshipId, userId) {
@@ -120,14 +142,26 @@ export async function rejectFriendRequest(friendshipId, userId) {
     throw new AppError('Only pending requests can be rejected.', 400);
   }
 
-  return prisma.friendship.update({
+  const updatedFriendship = await prisma.friendship.update({
     where: {
       id: friendshipId,
     },
     data: {
       status: 'REJECTED',
     },
+    include: {
+      requester: {
+        select: userSelect,
+      },
+      receiver: {
+        select: userSelect,
+      },
+    },
   });
+
+  emitFriendRequestRejected(updatedFriendship);
+
+  return updatedFriendship;
 }
 
 export async function removeFriend(userId, otherUserId) {
@@ -142,6 +176,8 @@ export async function removeFriend(userId, otherUserId) {
       id: friendship.id,
     },
   });
+
+  emitFriendRemoved(userId, otherUserId);
 }
 
 export async function getFriends(userId) {

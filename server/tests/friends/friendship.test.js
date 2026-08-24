@@ -13,7 +13,6 @@ describe('Friendship system', () => {
 
   let agentA;
   let agentB;
-  let agentC;
 
   async function createUserAndLogin(username, email) {
     const password = 'Password123!';
@@ -68,7 +67,6 @@ describe('Friendship system', () => {
     agentB = second.agent;
     userB = second.user;
 
-    agentC = third.agent;
     userC = third.user;
   });
 
