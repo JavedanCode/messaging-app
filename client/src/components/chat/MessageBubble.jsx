@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Check,
   Download,
+  Info,
   MoreHorizontal,
   Pencil,
   Trash2,
@@ -11,7 +12,10 @@ import {
 
 import { useAuth } from "../../context/AuthContext";
 import { useChat } from "../../context/ChatContext";
-import { getMessageAttachmentUrl } from "../../api/messages";
+import {
+  downloadAttachment,
+  getMessageAttachmentUrl,
+} from "../../api/messages";
 
 function MessageBubble({ message }) {
   const { user } = useAuth();
@@ -307,6 +311,21 @@ function AttachmentMessage({ message }) {
         )}
       </div>
 
+      <div className="group/download relative shrink-0">
+        <button
+          type="button"
+          className="flex h-7 w-7 items-center justify-center rounded-full text-white/20 transition hover:bg-white/5 hover:text-white/50"
+          aria-label="Attachment download information"
+        >
+          <Info size={13} />
+        </button>
+
+        <div className="pointer-events-none absolute bottom-full right-0 z-30 mb-2 w-56 rounded-lg border border-white/10 bg-[#181b22] px-3 py-2 text-[11px] leading-4 text-white/60 opacity-0 shadow-xl transition-opacity group-hover/download:opacity-100">
+          Downloads may be blocked by your browser's popup or download
+          protection. If the download does not work, allow popups for this site.
+        </div>
+      </div>
+
       <AttachmentDownloadButton message={message} />
     </div>
   );
@@ -378,25 +397,16 @@ function ImageAttachment({ message }) {
     };
   }, [showViewer]);
 
-  function handleDownload(event) {
+  async function handleDownload(event) {
     event.stopPropagation();
-
-    if (!url) {
-      return;
-    }
 
     setShowMenu(false);
 
-    const link = document.createElement("a");
-
-    link.href = url;
-    link.download = message.attachmentName || "image";
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    try {
+      await downloadAttachment(activeConversation.id, message.id);
+    } catch (error) {
+      console.error("Failed to download image attachment:", error);
+    }
   }
   if (loading) {
     return (
@@ -431,32 +441,50 @@ function ImageAttachment({ message }) {
         </button>
 
         <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-end p-2 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-          <div className="pointer-events-auto relative">
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                setShowMenu((current) => !current);
-              }}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm transition hover:bg-black/75"
-              aria-label="Image options"
-              title="Image options"
-            >
-              <MoreHorizontal size={17} />
-            </button>
+          <div className="pointer-events-auto flex items-center gap-1">
+            <div className="group/download relative">
+              <button
+                type="button"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white/60 backdrop-blur-sm transition hover:bg-black/75 hover:text-white"
+                aria-label="Attachment download information"
+              >
+                <Info size={14} />
+              </button>
 
-            {showMenu && (
-              <div className="absolute right-0 top-10 z-20 min-w-32 overflow-hidden rounded-xl border border-white/10 bg-[#181b22] p-1 shadow-2xl">
-                <button
-                  type="button"
-                  onClick={handleDownload}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs text-white/70 transition hover:bg-white/5 hover:text-white"
-                >
-                  <Download size={14} />
-                  Download
-                </button>
+              <div className="pointer-events-none absolute right-0 top-10 z-30 w-56 rounded-lg border border-white/10 bg-[#181b22] px-3 py-2 text-[11px] leading-4 text-white/60 opacity-0 shadow-xl transition-opacity group-hover/download:opacity-100">
+                Downloads may be blocked by your browser's popup or download
+                protection. If the download does not work, allow popups for this
+                site.
               </div>
-            )}
+            </div>
+
+            <div className="relative">
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setShowMenu((current) => !current);
+                }}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm transition hover:bg-black/75"
+                aria-label="Image options"
+                title="Image options"
+              >
+                <MoreHorizontal size={17} />
+              </button>
+
+              {showMenu && (
+                <div className="absolute right-0 top-10 z-20 min-w-32 overflow-hidden rounded-xl border border-white/10 bg-[#181b22] p-1 shadow-2xl">
+                  <button
+                    type="button"
+                    onClick={handleDownload}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs text-white/70 transition hover:bg-white/5 hover:text-white"
+                  >
+                    <Download size={14} />
+                    Download
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -491,23 +519,22 @@ function AttachmentDownloadButton({ message }) {
   const { activeConversation } = useChat();
   const [loading, setLoading] = useState(false);
 
-  function handleDownload(event) {
+  async function handleDownload(event) {
     event.stopPropagation();
 
-    if (!url) {
+    if (!activeConversation?.id || loading) {
       return;
     }
 
-    setShowMenu(false);
+    try {
+      setLoading(true);
 
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = message.attachmentName || "image";
-    link.rel = "noopener noreferrer";
-
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+      await downloadAttachment(activeConversation.id, message.id);
+    } catch (error) {
+      console.error("Failed to download attachment:", error);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -516,8 +543,8 @@ function AttachmentDownloadButton({ message }) {
       onClick={handleDownload}
       disabled={loading}
       className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/30 transition hover:bg-white/10 hover:text-white disabled:opacity-30"
-      aria-label="Open attachment"
-      title="Open attachment"
+      aria-label="Download attachment"
+      title="Download attachment"
     >
       {loading ? (
         <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/10 border-t-indigo-400" />

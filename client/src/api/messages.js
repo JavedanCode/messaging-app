@@ -70,3 +70,17 @@ export function getMessageAttachmentUrl(conversationId, messageId) {
     `/conversations/${conversationId}/messages/${messageId}/attachment`,
   );
 }
+
+export async function downloadAttachment(conversationId, messageId) {
+  const { url } = await getMessageAttachmentUrl(conversationId, messageId);
+
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = "";
+  link.rel = "noopener";
+
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
