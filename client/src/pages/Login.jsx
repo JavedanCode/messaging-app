@@ -6,6 +6,9 @@ import AuthLayout from "../components/auth/AuthLayout";
 import { useAuth } from "../context/AuthContext";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
+const DEMO_EMAIL = "demo@javedanchat.com";
+const DEMO_PASSWORD = "DemoPassword123!";
+
 function Login() {
   const { login } = useAuth();
 
@@ -36,6 +39,24 @@ function Login() {
       setError("We couldn't complete OAuth sign-in. Please try again.");
     }
   }, [searchParams]);
+
+  async function handleDemoLogin() {
+    setError("");
+    setSubmitting(true);
+
+    try {
+      await login({
+        email: DEMO_EMAIL,
+        password: DEMO_PASSWORD,
+      });
+
+      navigate("/");
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -166,6 +187,19 @@ function Login() {
           className="flex h-11 w-full items-center justify-center rounded-xl border border-white/10 bg-white/3 text-sm font-medium text-white/70 transition hover:bg-white/6 hover:text-white"
         >
           Continue with GitHub
+        </button>
+
+        <button
+          type="button"
+          onClick={handleDemoLogin}
+          disabled={submitting}
+          className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-indigo-400/20 bg-indigo-500/8 text-sm font-medium text-indigo-300 transition hover:border-indigo-400/30 hover:bg-indigo-500/12 hover:text-indigo-200 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {submitting ? (
+            <LoaderCircle size={18} className="animate-spin" />
+          ) : (
+            "Try the demo"
+          )}
         </button>
       </div>
     </AuthLayout>
