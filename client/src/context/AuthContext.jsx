@@ -18,12 +18,6 @@ export function AuthProvider({ children }) {
 
   const restorePromiseRef = useRef(null);
 
-  console.log("[AuthContext] render:", {
-    user,
-    loading,
-    isAuthenticated: Boolean(user),
-  });
-
   useEffect(() => {
     async function restoreSession() {
       if (restorePromiseRef.current) {
@@ -31,40 +25,18 @@ export function AuthProvider({ children }) {
       }
 
       restorePromiseRef.current = (async () => {
-        console.log("[AuthContext] restoreSession started");
-
         try {
-          console.log("[AuthContext] requesting /auth/me");
-
           const response = await getCurrentUser();
-
-          console.log("[AuthContext] /auth/me succeeded", response.user);
 
           setUser(response.user);
         } catch (error) {
-          console.log("[AuthContext] /auth/me failed:", error.message);
-
           try {
-            console.log("[AuthContext] attempting session refresh");
-
             await refreshSession();
-
-            console.log("[AuthContext] refresh succeeded");
 
             const response = await getCurrentUser();
 
-            console.log(
-              "[AuthContext] /auth/me after refresh succeeded",
-              response.user,
-            );
-
             setUser(response.user);
           } catch (refreshError) {
-            console.log(
-              "[AuthContext] SESSION RESTORE FAILED:",
-              refreshError.message,
-            );
-
             setUser(null);
           }
         } finally {
