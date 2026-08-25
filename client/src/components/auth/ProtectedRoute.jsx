@@ -6,13 +6,6 @@ function ProtectedRoute() {
   const { isAuthenticated, loading, user } = useAuth();
   const location = useLocation();
 
-  console.log("[ProtectedRoute]", {
-    user,
-    isAuthenticated,
-    loading,
-    pathname: location.pathname,
-  });
-
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0b0d11] text-white">
