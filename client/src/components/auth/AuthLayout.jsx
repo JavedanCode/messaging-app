@@ -13,7 +13,7 @@ function AuthLayout({ title, subtitle, children, footer }) {
             </div>
 
             <span className="text-lg font-semibold tracking-tight">
-              Messaging
+              JavedanChat
             </span>
           </div>
 
@@ -59,6 +59,17 @@ function AuthLayout({ title, subtitle, children, footer }) {
           </div>
 
           <div className="mt-8">{children}</div>
+
+          <div className="mt-8 rounded-xl border border-amber-400/15 bg-amber-400/5 px-4 py-3">
+            <p className="text-sm font-medium text-amber-200/90">
+              Using Google or GitHub login?
+            </p>
+
+            <p className="mt-1 text-xs leading-5 text-white/45">
+              This demo uses secure authentication cookies. Your browser must
+              allow third-party cookies for OAuth login to work correctly.
+            </p>
+          </div>
 
           {footer && <div className="mt-8">{footer}</div>}
         </div>
