@@ -46,12 +46,13 @@ function getFileExtension(filename) {
   return filename.slice(lastDot).toLowerCase();
 }
 
-export async function getAttachmentUrl(key) {
+export async function getAttachmentUrl(key, filename = 'attachment') {
   return getSignedUrl(
     r2Client,
     new GetObjectCommand({
       Bucket: r2BucketName,
       Key: key,
+      ResponseContentDisposition: `attachment; filename="${filename}"`,
     }),
     {
       expiresIn: 300,

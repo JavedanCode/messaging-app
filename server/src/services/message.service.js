@@ -47,6 +47,7 @@ export async function getMessageAttachmentUrl(conversationId, messageId, userId)
     select: {
       conversationId: true,
       attachmentUrl: true,
+      attachmentName: true,
     },
   });
 
@@ -58,7 +59,7 @@ export async function getMessageAttachmentUrl(conversationId, messageId, userId)
     throw new AppError('Message does not have an attachment.', 404);
   }
 
-  const url = await getAttachmentUrl(message.attachmentUrl);
+  const url = await getAttachmentUrl(message.attachmentUrl, message.attachmentName || 'attachment');
 
   return url;
 }
